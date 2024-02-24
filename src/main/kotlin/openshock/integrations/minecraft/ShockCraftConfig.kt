@@ -16,12 +16,22 @@ class ShockCraftConfig {
     @SerialEntry(comment = "API Token generated on the web")
     var apiToken: String = ""
 
+    @SerialEntry(comment = "Intensity Min")
+    var intensityMin: Int = 0;
+
+    @SerialEntry(comment = "Intensity Max")
+    var intensityMax: Int = 100;
+
+
+    @SerialEntry(comment = "Shockers to use")
+    var shockers: List<String> = ArrayList()
+
     companion object {
         var HANDLER: ConfigClassHandler<ShockCraftConfig> = ConfigClassHandler.createBuilder(ShockCraftConfig::class.java)
             .id(Identifier("shockcraft", "config"))
             .serializer { config: ConfigClassHandler<ShockCraftConfig?>? ->
                 GsonConfigSerializerBuilder.create(config)
-                    .setPath(FabricLoader.getInstance().getConfigDir().resolve("ShockCraft.json5"))
+                    .setPath(FabricLoader.getInstance().configDir.resolve("ShockCraft.json5"))
                     .appendGsonBuilder(GsonBuilder::setPrettyPrinting) // not needed, pretty print by default
                     .setJson5(true)
                     .build()

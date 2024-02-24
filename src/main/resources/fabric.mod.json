@@ -23,7 +23,9 @@
 				"adapter": "kotlin"
 			}
 		],
-		"modmenu": [ "openshock.integrations.minecraft.ModMenuEntry" ]
+		"modmenu": [
+			"openshock.integrations.minecraft.ModMenuEntryPoint"
+		]
 	},
 	"mixins": [
 		"shockcraft.mixins.json"
