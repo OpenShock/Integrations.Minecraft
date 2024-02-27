@@ -10,6 +10,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import openshock.integrations.minecraft.ShockCraft
 import openshock.integrations.minecraft.config.ShockCraftConfig
+import ru.gildor.coroutines.okhttp.await
 
 
 object OpenShockApi {
@@ -18,7 +19,7 @@ object OpenShockApi {
 
     private val client: OkHttpClient = OkHttpClient()
 
-    fun Control(type: ControlType, intensity: Byte, duration: UShort, name: String? = null) {
+    suspend fun control(type: ControlType, intensity: Byte, duration: UShort, name: String? = null) {
 
         val shocks = ArrayList<ControlItem>()
 
@@ -41,9 +42,9 @@ object OpenShockApi {
             .post(body)
             .build()
 
-        client.newCall(request).execute().use { response ->
-            ShockCraft.logger.info(response.body!!.string())
-        }
+        val response = client.newCall(request).await()
+
+        ShockCraft.logger.info(response.body!!.string())
 
         ShockCraft.logger.info("ONLY NOW ???!!")
     }

@@ -35,6 +35,7 @@ dependencies {
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	implementation("com.squareup.okhttp3:okhttp:4.12.0")
+	implementation("ru.gildor.coroutines:kotlin-coroutines-okhttp:1.0")
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"

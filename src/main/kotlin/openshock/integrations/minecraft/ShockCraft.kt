@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.EndTick
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.client.MinecraftClient
+import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandManager.literal
@@ -33,7 +34,7 @@ object ShockCraft : ModInitializer {
 			dispatcher.register(literal("foo")
 				.executes { context ->
 
-					GlobalScope.launch {  OpenShockApi.Control(ControlType.Vibrate, 50, 5000u) }
+					GlobalScope.launch {  OpenShockApi.control(ControlType.Vibrate, 50, 5000u) }
 
 					context.getSource().sendFeedback(
 						{ Text.literal("Called /foo with no arguments") },
@@ -43,31 +44,49 @@ object ShockCraft : ModInitializer {
 				})
 		})
 
-		ClientTickEvents.END_CLIENT_TICK.register(EndTick { ClientTickLoopFun() })
+		ClientTickEvents.END_CLIENT_TICK.register(EndTick { clientTickLoopFun() })
 	}
 
 	var lastTickHealth: Float = 20f
+	var lastTickReset: Boolean = false
 
-	private fun Reset() {
-		lastTickHealth = 20f
+	private fun reset() {
+		lastTickReset = true
+		val player = MinecraftClient.getInstance().player
+
+		if(player == null){
+			lastTickHealth = 20f
+			return
+		}
+
+		lastTickHealth = player.maxHealth
 	}
 
-	private fun ClientTickLoopFun() {
+	@OptIn(DelicateCoroutinesApi::class)
+	private fun clientTickLoopFun() {
 		val player = MinecraftClient.getInstance().player
 
 		// Player does not exist, reset and return
 		if(player == null) {
-			Reset()
+			reset()
 			return
 		}
 
 		// No need to run if we are paused or in escape screen at least
 		if(MinecraftClient.getInstance().isPaused) return
 
+		val creativeOrSpectator = player.isCreative || player.isSpectator
+
 		// We usually cannot take damage in creative or spectator, reset and return
-		if(player.isCreative || player.isSpectator) {
-			Reset()
+		if(creativeOrSpectator) {
+			reset()
 			return
+		}
+
+		// This needs to be after all possible resets
+		if(lastTickReset) {
+			lastTickReset = false
+			lastTickHealth = player.health
 		}
 
 		val damageSinceLastTick = (lastTickHealth - player.health).coerceAtLeast(0f)
@@ -79,7 +98,43 @@ object ShockCraft : ModInitializer {
 		if(damageSinceLastTick > 0) {
 			logger.info(player.recentDamageSource?.name + " - " + damageSinceLastTick.toString())
 
-			if(player.isDead) logger.info("We also died in this tick")
+			if(player.isDead) {
+				GlobalScope.launch {
+					onDeath(player)
+				}
+				return
+			}
 		}
+	}
+
+	private suspend fun onDeath(player: ClientPlayerEntity) {
+		val config = ShockCraftConfig.HANDLER.instance()
+		if (!config.onDeath) return
+		var customName: String? = null
+		if (player.recentDamageSource != null) {
+			customName = player.recentDamageSource?.name + " (Integrations.Minecraft)"
+		}
+		OpenShockApi.control(
+			ControlType.Shock,
+			config.onDeathIntensity,
+			config.onDeathDuration,
+			customName
+		)
+	}
+
+	private suspend fun onDamage(player: ClientPlayerEntity) {
+		val config = ShockCraftConfig.HANDLER.instance()
+		if (!config.onDamage) return
+
+		var customName: String? = null
+		if (player.recentDamageSource != null) {
+			customName = player.recentDamageSource?.name + " (Integrations.Minecraft)"
+		}
+		OpenShockApi.control(
+			ControlType.Shock,
+			config.onDeathIntensity,
+			config.onDeathDuration,
+			customName
+		)
 	}
 }
