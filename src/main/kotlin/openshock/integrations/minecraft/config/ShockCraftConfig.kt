@@ -1,4 +1,4 @@
-package openshock.integrations.minecraft
+package openshock.integrations.minecraft.config
 
 import com.google.gson.GsonBuilder
 import dev.isxander.yacl3.config.v2.api.ConfigClassHandler
@@ -10,21 +10,56 @@ import net.minecraft.util.Identifier
 
 class ShockCraftConfig {
 
+    // <--- Server --->
+
     @SerialEntry(comment = "Base API Url of the OpenShock Backend. Official instance: https://api.shocklink.net")
     var apiBaseUrl: String = "https://api.shocklink.net"
 
     @SerialEntry(comment = "API Token generated on the web")
     var apiToken: String = ""
 
-    @SerialEntry(comment = "Intensity Min")
-    var intensityMin: Int = 0;
 
-    @SerialEntry(comment = "Intensity Max")
-    var intensityMax: Int = 100;
-
+    // <--- Shockers --->
 
     @SerialEntry(comment = "Shockers to use")
     var shockers: List<String> = ArrayList()
+
+
+    // <--- On Damage --->
+
+    @SerialEntry(comment = "Shock on damage?")
+    var onDamage: Boolean = true
+
+    @SerialEntry(comment = "How damage shocks you")
+    var damageMode: DamageShockMode = DamageShockMode.LowHp
+
+    @SerialEntry
+    var intensityMin: Byte = 0
+
+    @SerialEntry
+    var intensityMax: Byte = 50
+
+    @SerialEntry
+    var durationMin: UShort = 300u
+
+    @SerialEntry
+    var durationMax: UShort = 2500u
+
+
+    // <--- On Death --->
+
+    @SerialEntry(comment = "Shock on death?")
+    var onDeath: Boolean = true
+
+    @SerialEntry
+    var onDeathIntensity: Byte = 50
+
+    @SerialEntry
+    var onDeathDuration: UShort = 2500u
+
+
+
+
 
     companion object {
         var HANDLER: ConfigClassHandler<ShockCraftConfig> = ConfigClassHandler.createBuilder(ShockCraftConfig::class.java)

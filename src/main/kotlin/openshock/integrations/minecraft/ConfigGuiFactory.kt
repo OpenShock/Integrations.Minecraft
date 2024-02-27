@@ -7,13 +7,12 @@ import dev.isxander.yacl3.api.Option
 import dev.isxander.yacl3.api.OptionDescription
 import dev.isxander.yacl3.api.OptionGroup
 import dev.isxander.yacl3.api.YetAnotherConfigLib
-import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder
-import dev.isxander.yacl3.api.controller.StringControllerBuilder
-import dev.isxander.yacl3.gui.controllers.slider.FloatSliderController
-import dev.isxander.yacl3.gui.controllers.slider.IntegerSliderController
+import dev.isxander.yacl3.api.controller.*
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.text.Text
+import openshock.integrations.minecraft.config.DamageShockMode
+import openshock.integrations.minecraft.config.ShockCraftConfig
 
 object ConfigGuiFactory : ConfigScreenFactory<Screen> {
 
@@ -36,17 +35,123 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
         builder: YetAnotherConfigLib.Builder
     ): YetAnotherConfigLib.Builder {
         return builder
-            .title(Text.literal("OpenShock"))
-
+            .title(Text.literal("ShockCraft - OpenShock Minecraft Integration"))
 
             .category(
                 ConfigCategory.createBuilder()
-                    .name(Text.literal("ShockCraft - OpenShock Config"))
+                    .name(Text.literal("Behaviour / Shock Settings"))
+
+                    .group(OptionGroup.createBuilder()
+                        .name(Text.literal("On Damage"))
+                        .description(OptionDescription.of(Text.literal("Settings for shocking on damage")))
+
+                        .option(Option.createBuilder<Boolean>()
+                            .name(Text.literal("Enabled"))
+                            .description(OptionDescription.of(Text.literal("Enable shocking on damage")))
+                            .controller { TickBoxControllerBuilder.create(it) }
+                            .binding(defaults.onDamage, { config.onDamage }, { config.onDamage = it })
+                            .build()
+                        )
+                        .option(Option.createBuilder<DamageShockMode>()
+                            .name(Text.literal("On Damage Action"))
+                            .description(
+                                OptionDescription.of(
+                                    Text.literal(
+                                        "Defines what happens when you receive damage.\n" +
+                                                "None = Turned off duh\n" +
+                                                "Low Hp = You get shocked at higher intensity the less HP you have\n" +
+                                                "Damage Amount = You get shocked the amount of damage you have received"
+                                    )
+                                )
+                            )
+                            .controller {
+                                EnumControllerBuilder.create(it).enumClass(DamageShockMode::class.java)
+                            }
+                            .binding(defaults.damageMode, { config.damageMode }, { config.damageMode = it })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Minimum Intensity"))
+                            .controller { option: Option<Int> ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(1, 100)
+                                    .step(1)
+                            }
+                            .binding(
+                                defaults.intensityMin.toInt(),
+                                { config.intensityMin.toInt() },
+                                { config.intensityMin = it.toByte() })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Maximum Intensity"))
+                            .controller { option: Option<Int> ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(1, 100)
+                                    .step(1)
+                            }
+                            .binding(
+                                defaults.intensityMax.toInt(),
+                                { config.intensityMax.toInt() },
+                                { config.intensityMax = it.toByte() })
+                            .build()
+                        )
+
+                        .build()
+                    )
+
+                    .group(OptionGroup.createBuilder()
+                        .name(Text.literal("On Death"))
+                        .description(OptionDescription.of(Text.literal("Defines what happens when you die")))
+
+                        .option(Option.createBuilder<Boolean>()
+                            .name(Text.literal("Enabled"))
+                            .description(OptionDescription.of(Text.literal("Enable shocking on death")))
+                            .controller { TickBoxControllerBuilder.create(it) }
+                            .binding(defaults.onDeath, { config.onDeath }, { config.onDeath = it })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Intensity"))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(1, 100)
+                                    .step(1)
+                            }
+                            .binding(
+                                defaults.onDeathIntensity.toInt(),
+                                { config.onDeathIntensity.toInt() },
+                                { config.onDeathIntensity = it.toByte() })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Duration"))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(300, 30_000)
+                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                            }
+                            .binding(
+                                defaults.onDeathDuration.toInt(),
+                                { config.onDeathDuration.toInt() },
+                                { config.onDeathDuration = it.toUShort() })
+                            .build()
+                        )
+
+                        .build()
+                    )
+
+                    .build()
+            )
+
+            .category(
+                ConfigCategory.createBuilder()
+                    .name(Text.literal("Setup"))
 
                     // Server group
                     .group(OptionGroup.createBuilder()
                         .name(Text.literal("Server"))
-                        .description(OptionDescription.of(Text.literal("Server / OpenShock Backend Settings")))
+                        .description(OptionDescription.of(Text.literal("Server / OpenShock Backend Settings and Shocker Setup")))
                         .option(
                             Option.createBuilder<String>()
                                 .name(Text.literal("API URL"))
@@ -55,7 +160,7 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                                 .binding(
                                     defaults.apiBaseUrl,
                                     { config.apiBaseUrl },
-                                    { newVal: String -> config.apiBaseUrl = newVal })
+                                    { config.apiBaseUrl = it })
                                 .build()
                         )
                         .option(
@@ -66,45 +171,12 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                                 .binding(
                                     defaults.apiToken,
                                     { config.apiToken },
-                                    { newVal: String -> config.apiToken = newVal })
+                                    { config.apiToken = it })
                                 .build()
                         ).build()
                     )
 
                     // Shocker group
-                    .group(OptionGroup.createBuilder()
-                        .name(Text.literal("Shocking Options"))
-
-                        .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Minimum Intensity"))
-                            .controller { option: Option<Int> ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1).formatValue { it -> Text.literal("$it minimum") }
-                            }
-                            .binding(
-                                defaults.intensityMin,
-                                { config.intensityMin },
-                                { newVal: Int -> config.intensityMin = newVal })
-                            .build()
-                        )
-
-
-                        .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Maximum Intensity"))
-                            .controller { option: Option<Int> ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1).formatValue { it -> Text.literal("$it maximum") }
-                            }
-                            .binding(
-                                defaults.intensityMax,
-                                { config.intensityMax },
-                                { newVal: Int -> config.intensityMax = newVal })
-                            .build()
-                        )
-                        .build()
-                    )
 
                     .group(ListOption.createBuilder<String>()
                         .name(Text.literal("Shockers"))
@@ -112,7 +184,7 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                         .binding(
                             defaults.shockers,
                             { config.shockers },
-                            { newVal: List<String> -> config.shockers = newVal })
+                            { config.shockers = it })
                         .initial("Put your Shocker ID here")
                         .build()
                     )

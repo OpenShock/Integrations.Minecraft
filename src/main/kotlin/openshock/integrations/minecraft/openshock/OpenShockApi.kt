@@ -9,7 +9,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import openshock.integrations.minecraft.ShockCraft
-import openshock.integrations.minecraft.ShockCraftConfig
+import openshock.integrations.minecraft.config.ShockCraftConfig
 
 
 object OpenShockApi {
