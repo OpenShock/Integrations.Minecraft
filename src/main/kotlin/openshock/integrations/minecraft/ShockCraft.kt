@@ -17,15 +17,15 @@ import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandManager.literal
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
+import okhttp3.internal.wait
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
-import openshock.integrations.minecraft.openshock.ControlType
-import openshock.integrations.minecraft.openshock.OpenShockApi
+import openshock.integrations.minecraft.api.ControlType
+import openshock.integrations.minecraft.api.OpenShockApi
 import openshock.integrations.minecraft.utils.MathUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.Calendar
-import kotlin.math.log
 
 object ShockCraft : ModInitializer {
     public val logger: Logger = LoggerFactory.getLogger("shockcraft")
@@ -35,6 +35,8 @@ object ShockCraft : ModInitializer {
         logger.info("Hello Fabric world!")
 
         ShockCraftConfig.HANDLER.load()
+
+        GlobalScope.launch { OpenShockApi.control(ControlType.Vibrate, 50, 5000u, "DEBUG") }
 
         CommandRegistrationCallback.EVENT.register(CommandRegistrationCallback { dispatcher: CommandDispatcher<ServerCommandSource?>, registryAccess: CommandRegistryAccess?, environment: CommandManager.RegistrationEnvironment? ->
             dispatcher.register(literal("foo")

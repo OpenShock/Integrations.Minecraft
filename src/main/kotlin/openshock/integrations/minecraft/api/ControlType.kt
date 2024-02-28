@@ -1,4 +1,4 @@
-package openshock.integrations.minecraft.openshock
+package openshock.integrations.minecraft.api
 
 enum class ControlType {
     Stop,

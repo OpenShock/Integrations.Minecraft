@@ -1,4 +1,4 @@
-package openshock.integrations.minecraft.openshock
+package openshock.integrations.minecraft.api
 
 import com.google.gson.Gson
 import net.minecraft.client.MinecraftClient
@@ -11,8 +11,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import openshock.integrations.minecraft.ShockCraft
 import openshock.integrations.minecraft.config.ShockCraftConfig
-import ru.gildor.coroutines.okhttp.await
-
+import openshock.integrations.minecraft.utils.await
 
 object OpenShockApi {
 
