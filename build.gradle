@@ -84,8 +84,8 @@ jar {
 }
 
 shadowJar {
+    exclude 'kotlin*'
     configurations = [project.configurations.shadow]
-    archiveClassifier.set("dev")
 }
 
 remapJar {
