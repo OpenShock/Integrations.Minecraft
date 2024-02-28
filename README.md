@@ -2,6 +2,7 @@
   
 # OpenShock Minecraft Integration (ShockCraft)
 
+![](https://img.shields.io/badge/Enviroment-Client-purple?style=for-the-badge)
 [![Modrinth](https://img.shields.io/modrinth/dt/shockcraft?color=00AF5C&label=downloads&logo=modrinth&style=for-the-badge)](https://modrinth.com/mod/shockcraft)
 
 [![Discord](https://img.shields.io/discord/1078124408775901204?style=for-the-badge&color=6451f1&label=OpenShock%20Discord&logo=discord)](https://openshock.net/discord)
