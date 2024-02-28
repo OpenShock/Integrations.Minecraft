@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.EndTick
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.client.MinecraftClient
+import net.minecraft.client.gui.screen.GameMenuScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.entity.damage.DamageSource
@@ -23,6 +24,8 @@ import openshock.integrations.minecraft.openshock.OpenShockApi
 import openshock.integrations.minecraft.utils.MathUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.Calendar
+import kotlin.math.log
 
 object ShockCraft : ModInitializer {
     public val logger: Logger = LoggerFactory.getLogger("shockcraft")
@@ -52,6 +55,7 @@ object ShockCraft : ModInitializer {
 
     var lastTickHealth: Float = 20f
     var lastTickReset: Boolean = false
+    var pauseMenuOpen: Boolean = true
 
     private fun reset() {
         lastTickReset = true
@@ -67,6 +71,25 @@ object ShockCraft : ModInitializer {
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun clientTickLoopFun() {
+        val currentScreen = MinecraftClient.getInstance().currentScreen;
+
+        // Cursed if logic to see if pause menu was opened, might not work with all mods
+        if (currentScreen != null) {
+            if (!pauseMenuOpen && currentScreen is GameMenuScreen) {
+                pauseMenuOpen = true
+                logger.debug("Game menu opened")
+            }
+        } else if (pauseMenuOpen) {
+            pauseMenuOpen = false
+            logger.debug("Game menu closed")
+        }
+
+        // Pause menu is open or one of its childs. Reset so we dont shock when you close it again and have taken damage
+        if(pauseMenuOpen) {
+            reset()
+            return
+        }
+
         val player = MinecraftClient.getInstance().player
 
         // Player does not exist, reset and return
@@ -74,9 +97,6 @@ object ShockCraft : ModInitializer {
             reset()
             return
         }
-
-        // No need to run if we are paused or in escape screen at least
-        if (MinecraftClient.getInstance().isPaused) return
 
         val creativeOrSpectator = player.isCreative || player.isSpectator
 
@@ -99,7 +119,7 @@ object ShockCraft : ModInitializer {
 
         // Did we take damage?
         if (damageSinceLastTick > 0) {
-            logger.info(player.recentDamageSource?.name + " - " + damageSinceLastTick.toString())
+            logger.debug(player.recentDamageSource?.name + " - " + damageSinceLastTick.toString())
 
             if (player.isDead) {
                 logger.debug("Player died")
@@ -121,51 +141,67 @@ object ShockCraft : ModInitializer {
             ControlType.Shock,
             config.onDeathIntensity,
             config.onDeathDuration,
-			getName(player.recentDamageSource)
+            getName(player.recentDamageSource)
         )
     }
+
+    private var lastShock: Long = -1
 
     private suspend fun onDamage(player: ClientPlayerEntity, damage: Float) {
         val config = ShockCraftConfig.HANDLER.instance()
         if (!config.onDamage) return
 
+        val currentTime = Calendar.getInstance().timeInMillis
+        if (lastShock + config.cooldown.toLong() > currentTime) {
+            logger.info("OnDamage is on cooldown")
+            return
+        }
 
+        lastShock = currentTime
 
-		var intensity: Byte
-		var duration: UShort
+        val percentageThreshold = config.damageThreshold.toFloat() / 20f
 
-		when (config.damageMode) {
-			DamageShockMode.LowHp -> {
+        val intensity: Byte
+        val duration: UShort
+
+        when (config.damageMode) {
+            DamageShockMode.LowHp -> {
                 val percentageDamage = 1 - (player.health / player.maxHealth).coerceAtLeast(0f).coerceAtMost(1f)
+                if (percentageDamage < percentageThreshold) {
+                    logger.debug("Damage percentage is below threshold")
+                    return
+                }
 
                 intensity = MathUtils.lerp(config.intensityMin, config.intensityMax, percentageDamage)
                 duration = MathUtils.lerp(config.durationMin, config.durationMax, percentageDamage)
-			}
-			DamageShockMode.DamageAmount -> {
+            }
+
+            DamageShockMode.DamageAmount -> {
                 val percentageDamage = (damage / player.maxHealth).coerceAtLeast(0f).coerceAtMost(1f)
+                if (percentageDamage < percentageThreshold) {
+                    logger.debug("Damage percentage is below threshold")
+                    return
+                }
 
                 intensity = MathUtils.lerp(config.intensityMin, config.intensityMax, percentageDamage)
                 duration = MathUtils.lerp(config.durationMin, config.durationMax, percentageDamage)
-
-			}
-		}
+            }
+        }
 
         OpenShockApi.control(
             ControlType.Shock,
             intensity,
             duration,
-			getName(player.recentDamageSource)
+            getName(player.recentDamageSource)
         )
     }
 
-	private const val SUFFIX: String = " (Integrations.Minecraft)"
-
-	private fun getName(damageSource: DamageSource?): String {
-		if (damageSource != null) {
-			return if (damageSource.attacker != null) damageSource.attacker!!.name.literalString + SUFFIX
-			else damageSource.name + SUFFIX
-		}
-		return "Unknown$SUFFIX"
-	}
+    private fun getName(damageSource: DamageSource?): String {
+        if (damageSource != null) {
+            return if (damageSource.attacker != null && damageSource.attacker!!.name.literalString != null) damageSource.attacker!!.name.literalString!!
+            else damageSource.name
+        }
+        return "Unknown"
+    }
 
 }

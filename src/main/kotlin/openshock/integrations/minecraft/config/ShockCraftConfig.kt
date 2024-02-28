@@ -45,6 +45,12 @@ class ShockCraftConfig {
     @SerialEntry
     var durationMax: UShort = 2500u
 
+    @SerialEntry
+    var damageThreshold: UInt = 0u
+
+    @SerialEntry
+    var cooldown: UShort = 500u
+
 
     // <--- On Death --->
 

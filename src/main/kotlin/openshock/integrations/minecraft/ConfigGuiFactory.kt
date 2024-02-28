@@ -26,10 +26,10 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                 )
             }
 
-        return yacl.generateScreen(MinecraftClient.getInstance().currentScreen)
+        return yacl.generateScreen(parent)
     }
 
-    fun createBuilder(
+    private fun createBuilder(
         defaults: ShockCraftConfig,
         config: ShockCraftConfig,
         builder: YetAnotherConfigLib.Builder
@@ -94,6 +94,36 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                                 defaults.intensityMax.toInt(),
                                 { config.intensityMax.toInt() },
                                 { config.intensityMax = it.toByte() })
+                            .build()
+                        )
+
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Damage Threshold"))
+                            .description(OptionDescription.of(Text.literal("How much damage you need to take, or have until a shock is sent")))
+                            .controller { option: Option<Int> ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(1, 20)
+                                    .step(1)
+                            }
+                            .binding(
+                                defaults.damageThreshold.toInt(),
+                                { config.damageThreshold.toInt() },
+                                { config.damageThreshold = it.toUInt() })
+                            .build()
+                        )
+
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Cooldown"))
+                            .description(OptionDescription.of(Text.literal("Cooldown between on damage shocks")))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(300, 60_000)
+                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                            }
+                            .binding(
+                                defaults.cooldown.toInt(),
+                                { config.cooldown.toInt() },
+                                { config.cooldown = it.toUShort() })
                             .build()
                         )
 

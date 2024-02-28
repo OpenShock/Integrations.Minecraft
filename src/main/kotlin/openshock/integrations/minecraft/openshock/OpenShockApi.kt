@@ -16,6 +16,7 @@ import ru.gildor.coroutines.okhttp.await
 
 object OpenShockApi {
 
+    private const val SUFFIX: String = " (Integrations.Minecraft)"
     private val JSON: MediaType = "application/json".toMediaType()
 
     private val client: OkHttpClient = OkHttpClient()
@@ -28,7 +29,7 @@ object OpenShockApi {
             shocks.add(ControlItem(it, type, intensity, duration))
         }
 
-        val requestObject = ControlRequest(shocks, name)
+        val requestObject = ControlRequest(shocks, name + SUFFIX)
         val json = Gson().toJson(requestObject)
 
         val url = ShockCraftConfig.HANDLER.instance().apiBaseUrl.toHttpUrl()
