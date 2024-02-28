@@ -30,27 +30,10 @@ import java.util.Calendar
 object ShockCraft : ModInitializer {
     public val logger: Logger = LoggerFactory.getLogger("shockcraft")
 
-    @OptIn(DelicateCoroutinesApi::class)
     override fun onInitialize() {
         logger.info("Hello Fabric world!")
 
         ShockCraftConfig.HANDLER.load()
-
-        GlobalScope.launch { OpenShockApi.control(ControlType.Vibrate, 50, 5000u, "DEBUG") }
-
-        CommandRegistrationCallback.EVENT.register(CommandRegistrationCallback { dispatcher: CommandDispatcher<ServerCommandSource?>, registryAccess: CommandRegistryAccess?, environment: CommandManager.RegistrationEnvironment? ->
-            dispatcher.register(literal("foo")
-                .executes { context ->
-
-                    GlobalScope.launch { OpenShockApi.control(ControlType.Vibrate, 50, 5000u, "DEBUG") }
-
-                    context.getSource().sendFeedback(
-                        { Text.literal("Called /foo with no arguments") },
-                        false
-                    )
-                    1
-                })
-        })
 
         ClientTickEvents.END_CLIENT_TICK.register(EndTick { clientTickLoopFun() })
     }
