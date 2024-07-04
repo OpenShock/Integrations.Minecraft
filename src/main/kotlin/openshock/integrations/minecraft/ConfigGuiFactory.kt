@@ -36,10 +36,23 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
     ): YetAnotherConfigLib.Builder {
         return builder
             .title(Text.literal("ShockCraft - OpenShock Minecraft Integration"))
-
+            
             .category(
                 ConfigCategory.createBuilder()
                     .name(Text.literal("Behaviour / Shock Settings"))
+                    
+                    .group(OptionGroup.createBuilder()
+                        .name(Text.literal("General"))
+                        .description(OptionDescription.of(Text.literal("General settings for the mod")))
+                        
+                        .option(Option.createBuilder<Boolean>()
+                            .name(Text.literal("Display Shocks in Action Bar"))
+                            .description(OptionDescription.of(Text.literal("Displays Shocks or all kinds of commands in the action bar on your screen")))
+                            .controller { TickBoxControllerBuilder.create(it) }
+                            .binding(defaults.displayShocksInActionBar, { config.displayShocksInActionBar }, { config.displayShocksInActionBar = it })
+                            .build()
+                        ).build()
+                    )
 
                     .group(OptionGroup.createBuilder()
                         .name(Text.literal("On Damage"))
@@ -58,7 +71,6 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                                 OptionDescription.of(
                                     Text.literal(
                                         "Defines what happens when you receive damage.\n" +
-                                                "None = Turned off duh\n" +
                                                 "Low Hp = You get shocked at higher intensity the less HP you have\n" +
                                                 "Damage Amount = You get shocked the amount of damage you have received"
                                     )

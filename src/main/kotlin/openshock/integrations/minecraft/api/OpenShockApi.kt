@@ -12,6 +12,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import openshock.integrations.minecraft.ShockCraft
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.utils.await
+import org.w3c.dom.Text
 
 object OpenShockApi {
 
@@ -44,6 +45,13 @@ object OpenShockApi {
 
         val response = client.newCall(request).await()
 
-        ShockCraft.logger.info(response.body!!.string())
+        ShockCraft.logger.debug(response.body!!.string())
+
+        val inSeconds = (duration.toFloat() / 1000f)
+
+        val config = ShockCraftConfig.HANDLER.instance()
+        if(!config.displayShocksInActionBar) return
+        
+        MinecraftClient.getInstance().player?.sendMessage(net.minecraft.text.Text.literal("$type at $intensity% for ${String.format("%.1f", inSeconds)}s [$name]"), true)
     }
 }

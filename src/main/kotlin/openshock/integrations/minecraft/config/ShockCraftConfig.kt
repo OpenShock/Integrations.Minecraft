@@ -62,14 +62,15 @@ class ShockCraftConfig {
 
     @SerialEntry
     var onDeathDuration: UShort = 2500u
+    
+    // <--- General --->
 
-
-
-
+    @SerialEntry
+    var displayShocksInActionBar: Boolean = true
 
     companion object {
         var HANDLER: ConfigClassHandler<ShockCraftConfig> = ConfigClassHandler.createBuilder(ShockCraftConfig::class.java)
-            .id(Identifier("shockcraft", "config"))
+            .id(Identifier.of("shockcraft", "config"))
             .serializer { config: ConfigClassHandler<ShockCraftConfig?>? ->
                 GsonConfigSerializerBuilder.create(config)
                     .setPath(FabricLoader.getInstance().configDir.resolve("ShockCraft.json5"))

@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.5-SNAPSHOT'
+    id 'fabric-loom' version '1.6-SNAPSHOT'
     id 'maven-publish'
     id "org.jetbrains.kotlin.jvm" version "1.9.22"
     id 'com.github.johnrengelman.shadow' version '8.1.1'
@@ -45,7 +45,7 @@ dependencies {
 
     // modImplementation "net.fabricmc.fabric-api:fabric-api-deprecated:${project.fabric_version}"
 
-    modImplementation 'dev.isxander.yacl:yet-another-config-lib-fabric:3.3.2+1.20.4'
+    modImplementation 'dev.isxander:yet-another-config-lib:3.5.0+1.21-fabric'
     modImplementation 'com.terraformersmc:modmenu:9.0.0'
 }
 
