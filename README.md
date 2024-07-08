@@ -23,3 +23,7 @@
 ### Config GUI by [YetAnotherConfigLib](https://github.com/isXander/YetAnotherConfigLib)
 
 ![Config GUI](https://cdn.modrinth.com/data/DwMSqx5B/images/e2c399b6c2c222aa3c729e9ae069d854a2708a4a.png)
+
+## Support
+
+You can support the openshock dev team here: [Sponsor OpenShock](https://github.com/sponsors/OpenShock)
