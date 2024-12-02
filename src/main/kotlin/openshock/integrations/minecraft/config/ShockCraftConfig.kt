@@ -12,8 +12,8 @@ class ShockCraftConfig {
 
     // <--- Server --->
 
-    @SerialEntry(comment = "Base API Url of the OpenShock Backend. Official instance: https://api.shocklink.net")
-    var apiBaseUrl: String = "https://api.shocklink.net"
+    @SerialEntry(comment = "Base API Url of the OpenShock Backend. Official instance: https://api.openshock.app")
+    var apiBaseUrl: String = "https://api.openshock.app"
 
     @SerialEntry(comment = "API Token generated on the web")
     var apiToken: String = ""
