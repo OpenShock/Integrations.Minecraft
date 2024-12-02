@@ -197,7 +197,7 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                         .option(
                             Option.createBuilder<String>()
                                 .name(Text.literal("API URL"))
-                                .description(OptionDescription.of(Text.literal("The API base URL of the OpenShock Backend. For the official instance this is https://api.openshock.org")))
+                                .description(OptionDescription.of(Text.literal("The API base URL of the OpenShock Backend. For the official instance this is https://api.openshock.app")))
                                 .controller { option: Option<String>? -> StringControllerBuilder.create(option) }
                                 .binding(
                                     defaults.apiBaseUrl,
