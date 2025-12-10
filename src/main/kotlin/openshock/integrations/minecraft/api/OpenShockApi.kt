@@ -13,16 +13,20 @@ import openshock.integrations.minecraft.ShockCraft
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.utils.await
 import org.w3c.dom.Text
+import org.slf4j.LoggerFactory
+
 
 object OpenShockApi {
 
+    private val logger = LoggerFactory.getLogger("OpenShockApi")
+    
     private const val SUFFIX: String = " (Integrations.Minecraft)"
     private val JSON: MediaType = "application/json".toMediaType()
 
     private val client: OkHttpClient = OkHttpClient()
 
     suspend fun control(type: ControlType, intensity: Byte, duration: UShort, name: String) {
-        ShockCraft.logger.info("Sending $type with $intensity intensity for $duration ms [$name]")
+        logger.info("Sending $type with $intensity intensity for $duration ms [$name]")
         val shocks = ArrayList<ControlItem>()
 
         ShockCraftConfig.HANDLER.instance().shockers.forEach {
@@ -45,7 +49,7 @@ object OpenShockApi {
 
         val response = client.newCall(request).await()
 
-        ShockCraft.logger.debug(response.body!!.string())
+        logger.debug(response.body!!.string())
 
         val inSeconds = (duration.toFloat() / 1000f)
 
