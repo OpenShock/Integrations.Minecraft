@@ -1,14 +1,11 @@
 package openshock.integrations.minecraft
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory
-import dev.isxander.yacl3.api.ConfigCategory
-import dev.isxander.yacl3.api.ListOption
-import dev.isxander.yacl3.api.Option
-import dev.isxander.yacl3.api.OptionDescription
-import dev.isxander.yacl3.api.OptionGroup
-import dev.isxander.yacl3.api.YetAnotherConfigLib
-import dev.isxander.yacl3.api.controller.*
-import net.minecraft.client.MinecraftClient
+import dev.isxander.yacl3.api.*
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder
+import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder
+import dev.isxander.yacl3.api.controller.StringControllerBuilder
+import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.text.Text
 import openshock.integrations.minecraft.config.DamageShockMode

@@ -1,36 +1,29 @@
 package openshock.integrations.minecraft
 
-import com.mojang.brigadier.CommandDispatcher
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.EndTick
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.screen.GameMenuScreen
 import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.entity.damage.DamageSource
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.CommandManager.literal
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
-import okhttp3.internal.wait
-import openshock.integrations.minecraft.config.DamageShockMode
-import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.api.ControlType
 import openshock.integrations.minecraft.api.OpenShockApi
+import openshock.integrations.minecraft.config.DamageShockMode
+import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.utils.MathUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.Calendar
+import java.util.*
 
-object ShockCraft : ModInitializer {
-    public val logger: Logger = LoggerFactory.getLogger("shockcraft")
+object ShockCraft : ClientModInitializer {
+    val logger: Logger = LoggerFactory.getLogger("shockcraft")
 
-    override fun onInitialize() {
+    override fun onInitializeClient() {
         logger.info("Hello Fabric world!")
 
         ShockCraftConfig.HANDLER.load()
@@ -41,6 +34,9 @@ object ShockCraft : ModInitializer {
     var lastTickHealth: Float = 20f
     var lastTickReset: Boolean = false
     var pauseMenuOpen: Boolean = true
+
+    val DamageSource?.attackerName: String
+        get() = this?.attacker?.stringifiedName ?: "Unknown"
 
     private fun reset() {
         lastTickReset = true
@@ -56,7 +52,7 @@ object ShockCraft : ModInitializer {
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun clientTickLoopFun() {
-        val currentScreen = MinecraftClient.getInstance().currentScreen;
+        val currentScreen = MinecraftClient.getInstance().currentScreen
 
         // Cursed if logic to see if pause menu was opened, might not work with all mods
         if (currentScreen != null) {
@@ -126,7 +122,7 @@ object ShockCraft : ModInitializer {
             ControlType.Shock,
             config.onDeathIntensity,
             config.onDeathDuration,
-            getName(player.recentDamageSource)
+            player.recentDamageSource.attackerName,
         )
     }
 
@@ -177,16 +173,7 @@ object ShockCraft : ModInitializer {
             ControlType.Shock,
             intensity,
             duration,
-            getName(player.recentDamageSource)
+            player.recentDamageSource.attackerName,
         )
     }
-
-    private fun getName(damageSource: DamageSource?): String {
-        if (damageSource != null) {
-            return if (damageSource.attacker != null && damageSource.attacker!!.name.literalString != null) damageSource.attacker!!.name.literalString!!
-            else damageSource.name
-        }
-        return "Unknown"
-    }
-
 }
