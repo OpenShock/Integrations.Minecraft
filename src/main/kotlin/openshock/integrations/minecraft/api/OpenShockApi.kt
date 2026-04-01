@@ -9,10 +9,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import openshock.integrations.minecraft.ShockCraft
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.utils.await
-import org.w3c.dom.Text
 import org.slf4j.LoggerFactory
 
 
