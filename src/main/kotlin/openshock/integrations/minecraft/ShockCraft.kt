@@ -4,9 +4,9 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.fabricmc.api.ClientModInitializer
-import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.EndTick
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.screen.GameMenuScreen
 import net.minecraft.client.network.ClientPlayerEntity
@@ -29,11 +29,20 @@ object ShockCraft : ClientModInitializer {
         ShockCraftConfig.HANDLER.load()
 
         ClientTickEvents.END_CLIENT_TICK.register(EndTick { clientTickLoopFun() })
+
+        ClientReceiveMessageEvents.CHAT.register { message, _, _, _, _ ->
+            val config = ShockCraftConfig.HANDLER.instance()
+            if (config.onChatEvent) {
+                onChatMessage(message.string)
+            }
+        }
     }
 
     var lastTickHealth: Float = 20f
     var lastTickReset: Boolean = false
     var pauseMenuOpen: Boolean = true
+
+    var lastTickXpLevel: Int = 0
 
     val DamageSource?.attackerName: String
         get() = this?.attacker?.stringifiedName ?: "Unknown"
@@ -44,10 +53,12 @@ object ShockCraft : ClientModInitializer {
 
         if (player == null) {
             lastTickHealth = 20f
+            lastTickXpLevel = 0
             return
         }
 
         lastTickHealth = player.maxHealth
+        lastTickXpLevel = player.experienceLevel
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -91,12 +102,15 @@ object ShockCraft : ClientModInitializer {
         if (lastTickReset) {
             lastTickReset = false
             lastTickHealth = player.health
+            lastTickXpLevel = player.experienceLevel
         }
 
         val damageSinceLastTick = (lastTickHealth - player.health).coerceAtLeast(0f)
+        val xpLevelChange = player.experienceLevel - lastTickXpLevel
 
-        // Set last tick health, we already calculated what we need
+        // Set last tick health and experience level, we already calculated what we need
         lastTickHealth = player.health
+        lastTickXpLevel = player.experienceLevel
 
         // Did we take damage?
         if (damageSinceLastTick > 0) {
@@ -111,6 +125,43 @@ object ShockCraft : ClientModInitializer {
             }
 
             GlobalScope.launch { onDamage(player, damageSinceLastTick) }
+        }
+
+        if (xpLevelChange > 0) {
+            logger.debug("Player leveled up by $xpLevelChange levels")
+            GlobalScope.launch {
+                onLevelUp(xpLevelChange)
+            }
+        }
+    }
+
+    private suspend fun onLevelUp(levels: Int) {
+        val config = ShockCraftConfig.HANDLER.instance()
+        if (!config.onLevelUp) return
+
+        OpenShockApi.control(
+            ControlType.Shock,
+            config.onLevelUpIntensity,
+            config.onLevelUpDuration,
+            "XP Level Up ($levels)",
+        )
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun onChatMessage(message: String) {
+        val config = ShockCraftConfig.HANDLER.instance()
+        if (config.chatMessagePhrase.isBlank()) return
+
+        if (message.contains(config.chatMessagePhrase, ignoreCase = true)) {
+            logger.debug("Chat message triggered shock: $message")
+            GlobalScope.launch {
+                OpenShockApi.control(
+                    ControlType.Shock,
+                    config.onChatMessageIntensity,
+                    config.onChatMessageDuration,
+                    "Chat Message Event",
+                )
+            }
         }
     }
 
