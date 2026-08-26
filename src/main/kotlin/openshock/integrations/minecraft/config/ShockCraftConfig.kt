@@ -62,6 +62,31 @@ class ShockCraftConfig {
 
     @SerialEntry
     var onDeathDuration: UShort = 2500u
+
+    // <--- On Level Up --->
+
+    @SerialEntry(comment = "Shock on level up?")
+    var onLevelUp: Boolean = false
+
+    @SerialEntry
+    var onLevelUpIntensity: Byte = 20
+
+    @SerialEntry
+    var onLevelUpDuration: UShort = 500u
+
+    // <--- On Chat Message --->
+
+    @SerialEntry(comment = "Shock when a specific phrase is sent/received in chat?")
+    var onChatEvent: Boolean = false
+
+    @SerialEntry(comment = "The phrase to trigger the shock")
+    var chatMessagePhrase: String = "shock me"
+
+    @SerialEntry
+    var onChatMessageIntensity: Byte = 30
+
+    @SerialEntry
+    var onChatMessageDuration: UShort = 1000u
     
     // <--- General --->
 

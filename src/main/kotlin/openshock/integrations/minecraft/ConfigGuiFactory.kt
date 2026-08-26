@@ -180,6 +180,95 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                         .build()
                     )
 
+                    .group(OptionGroup.createBuilder()
+                        .name(Text.literal("On Level Up"))
+                        .description(OptionDescription.of(Text.literal("Defines what happens when you gain an XP level")))
+
+                        .option(Option.createBuilder<Boolean>()
+                            .name(Text.literal("Enabled"))
+                            .description(OptionDescription.of(Text.literal("Enable shocking on level up")))
+                            .controller { TickBoxControllerBuilder.create(it) }
+                            .binding(defaults.onLevelUp, { config.onLevelUp }, { config.onLevelUp = it })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Intensity"))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(1, 100)
+                                    .step(1)
+                            }
+                            .binding(
+                                defaults.onLevelUpIntensity.toInt(),
+                                { config.onLevelUpIntensity.toInt() },
+                                { config.onLevelUpIntensity = it.toByte() })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Duration"))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(300, 30_000)
+                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                            }
+                            .binding(
+                                defaults.onLevelUpDuration.toInt(),
+                                { config.onLevelUpDuration.toInt() },
+                                { config.onLevelUpDuration = it.toUShort() })
+                            .build()
+                        )
+
+                        .build()
+                    )
+
+                    .group(OptionGroup.createBuilder()
+                        .name(Text.literal("On Chat Message"))
+                        .description(OptionDescription.of(Text.literal("Defines what happens when a specific chat phrase is sent or received")))
+
+                        .option(Option.createBuilder<Boolean>()
+                            .name(Text.literal("Enable for Chat Messages"))
+                            .description(OptionDescription.of(Text.literal("Enable shocking when a message with the key phrase is sent/received")))
+                            .controller { TickBoxControllerBuilder.create(it) }
+                            .binding(defaults.onChatEvent, { config.onChatEvent }, { config.onChatEvent = it })
+                            .build()
+                        )
+                        .option(Option.createBuilder<String>()
+                            .name(Text.literal("Key Phrase"))
+                            .description(OptionDescription.of(Text.literal("The phrase to trigger the shock")))
+                            .controller { StringControllerBuilder.create(it) }
+                            .binding(defaults.chatMessagePhrase, { config.chatMessagePhrase }, { config.chatMessagePhrase = it })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Intensity"))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(1, 100)
+                                    .step(1)
+                            }
+                            .binding(
+                                defaults.onChatMessageIntensity.toInt(),
+                                { config.onChatMessageIntensity.toInt() },
+                                { config.onChatMessageIntensity = it.toByte() })
+                            .build()
+                        )
+                        .option(Option.createBuilder<Int>()
+                            .name(Text.literal("Duration"))
+                            .controller { option ->
+                                IntegerSliderControllerBuilder.create(option)
+                                    .range(300, 30_000)
+                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                            }
+                            .binding(
+                                defaults.onChatMessageDuration.toInt(),
+                                { config.onChatMessageDuration.toInt() },
+                                { config.onChatMessageDuration = it.toUShort() })
+                            .build()
+                        )
+
+                        .build()
+                    )
+
                     .build()
             )
 
