@@ -1,0 +1,50 @@
+# Kotlin for Forge provides the Kotlin runtime and the object-declaration @Mod entrypoint.
+# The range has to track the target's KFF version - 1.20.x builds against 4.x, and a hard-coded
+# [5.0,) would make FML reject the jar outright.
+modLoader = "kotlinforforge"
+loaderVersion = "[${kffVersion},)"
+license = "GPL-3.0"
+issueTrackerURL = "https://github.com/OpenShock/Integrations.Minecraft/issues"
+
+[[mods]]
+modId = "${id}"
+version = "${version}"
+displayName = "${name}"
+description = '''${description}'''
+authors = "Luc, OpenShock Team"
+# NeoForge 26.2 deprecated logoFile in favour of iconFile (square) and bannerFile (wide).
+#? if >=26.2 {
+iconFile = "assets/${id}/icon.png"
+#?} else {
+#logoFile = "assets/${id}/icon.png"
+#logoBlur = false
+#?}
+displayURL = "https://openshock.org/"
+
+[[dependencies.${id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${mcDepNeoforge}"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforgeVersion},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "kotlinforforge"
+type = "required"
+versionRange = "[${kffVersion},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "yet_another_config_lib_v3"
+type = "required"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "CLIENT"

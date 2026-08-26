@@ -1,36 +1,41 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
+# Builds every Minecraft version / loader combination declared in settings.gradle.kts.
+# Stonecutter fans the build out across all targets; chiseledBuildAndCollect gathers the
+# resulting jars into the root build/libs directory.
 
 name: build
 on: [pull_request, push]
 
 jobs:
   build:
-    strategy:
-      matrix:
-        # Use these Java versions
-        java: [
-          21,    # Current Java LTS
-        ]
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-      - name: setup jdk ${{ matrix.java }}
+
+      # 1.21.x targets compile against Java 21, 26.x targets against Java 25.
+      # Both toolchains have to be present for the whole matrix to build in one pass.
+      - name: setup jdks
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
-          java-version: ${{ matrix.java }}
-          distribution: 'microsoft'
+          java-version: |
+            17
+            21
+            25
+          distribution: 'temurin'
+
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: build
-        run: ./gradlew build
+
+      - name: build all versions
+        run: ./gradlew chiseledBuildAndCollect --stacktrace
+
       - name: capture build artifacts
-        if: ${{ matrix.java == '21' }} # Only upload artifacts built from latest java on one OS
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Mod Jars

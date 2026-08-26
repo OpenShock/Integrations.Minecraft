@@ -5,6 +5,13 @@ build/
 out/
 classes/
 
+# stonecutter
+
+versions/*/build/
+versions/*/src/
+versions/*/.gradle/
+.stonecutter/
+
 # eclipse
 
 *.launch

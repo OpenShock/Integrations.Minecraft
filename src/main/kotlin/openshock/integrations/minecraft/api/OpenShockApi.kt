@@ -1,59 +1,91 @@
 package openshock.integrations.minecraft.api
 
 import com.google.gson.Gson
-import net.minecraft.client.MinecraftClient
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.config.ShockCraftConfig
-import openshock.integrations.minecraft.utils.await
+import openshock.integrations.minecraft.platform.McCompat
 import org.slf4j.LoggerFactory
-
+import java.io.IOException
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.net.http.HttpTimeoutException
+import java.time.Duration
 
 object OpenShockApi {
 
     private val logger = LoggerFactory.getLogger("OpenShockApi")
-    
-    private const val SUFFIX: String = " (Integrations.Minecraft)"
-    private val JSON: MediaType = "application/json".toMediaType()
 
-    private val client: OkHttpClient = OkHttpClient()
+    private const val SUFFIX: String = " (Integrations.Minecraft)"
+
+    private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
+
+    // connectTimeout only bounds connection setup, so without this a stalled server would leave
+    // the request hanging on a Dispatchers.IO thread forever.
+    private val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(15)
+
+    // The JDK client keeps us free of a shaded HTTP library, which would otherwise have to be
+    // bundled differently for each loader. OkHttp followed redirects by default; the JDK client
+    // does not, so it has to be asked for explicitly or a 3xx would silently drop the POST.
+    private val client: HttpClient = HttpClient.newBuilder()
+        .connectTimeout(CONNECT_TIMEOUT)
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .build()
 
     suspend fun control(type: ControlType, intensity: Byte, duration: UShort, name: String) {
         logger.info("Sending $type with $intensity intensity for $duration ms [$name]")
-        val shocks = ArrayList<ControlItem>()
+        val config = ShockCraftConfig.HANDLER.instance()
 
-        ShockCraftConfig.HANDLER.instance().shockers.forEach {
-            shocks.add(ControlItem(it, type, intensity, duration))
-        }
+        val shocks = config.shockers.map { ControlItem(it, type, intensity, duration) }
 
         val requestObject = ControlRequest(shocks, name + SUFFIX)
         val json = Gson().toJson(requestObject)
 
-        val url = ShockCraftConfig.HANDLER.instance().apiBaseUrl.toHttpUrl()
-        val concatUrl = url.resolve("/2/shockers/control")
+        val url = URI.create(config.apiBaseUrl.trimEnd('/') + "/2/shockers/control")
 
-        val body: RequestBody = json.toRequestBody(JSON)
-        val request: Request = Request.Builder()
-            .url(concatUrl!!)
-            .header("OpenShockToken", ShockCraftConfig.HANDLER.instance().apiToken)
-            .header("User-Agent", "Integrations.Minecraft/1.0.0 (Minecraft ${MinecraftClient.getInstance().gameVersion}; Java ${System.getProperty("java.version")})")
-            .post(body)
+        val request = HttpRequest.newBuilder(url)
+            .header("Content-Type", "application/json")
+            .header("OpenShockToken", config.apiToken)
+            .header(
+                "User-Agent",
+                "Integrations.Minecraft/1.0.0 (Minecraft ${Minecraft.getInstance().launchedVersion}; Java ${System.getProperty("java.version")})"
+            )
+            .POST(HttpRequest.BodyPublishers.ofString(json))
+            .timeout(REQUEST_TIMEOUT)
             .build()
 
-        val response = client.newCall(request).await()
+        // A network failure must not escape into the coroutine's uncaught handler - the shock is
+        // fire-and-forget, so log it and give up rather than take the game down with us.
+        val response = try {
+            withContext(Dispatchers.IO) {
+                client.send(request, HttpResponse.BodyHandlers.ofString())
+            }
+        } catch (e: HttpTimeoutException) {
+            // Must precede IOException: HttpTimeoutException is a subclass of it.
+            logger.error("Timed out sending $type to the OpenShock API after $REQUEST_TIMEOUT", e)
+            return
+        } catch (e: IOException) {
+            logger.error("Failed to send $type to the OpenShock API", e)
+            return
+        }
 
-        logger.debug(response.body!!.string())
+        if (response.statusCode() !in 200..299) {
+            logger.error("OpenShock API returned ${response.statusCode()}: ${response.body()}")
+            return
+        }
+
+        logger.debug(response.body())
 
         val inSeconds = (duration.toFloat() / 1000f)
 
-        val config = ShockCraftConfig.HANDLER.instance()
-        if(!config.displayShocksInActionBar) return
-        
-        MinecraftClient.getInstance().player?.sendMessage(net.minecraft.text.Text.literal("$type at $intensity% for ${String.format("%.1f", inSeconds)}s [$name]"), true)
+        if (!config.displayShocksInActionBar) return
+
+        McCompat.sendActionBar(
+            Component.literal("$type at $intensity% for ${String.format("%.1f", inSeconds)}s [$name]")
+        )
     }
 }

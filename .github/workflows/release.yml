@@ -1,0 +1,117 @@
+# Publishes every Minecraft version / loader combination to Modrinth and CurseForge, and attaches
+# the jars to the GitHub release, when a version tag is pushed (e.g. 1.4.0, 1.4.0-beta.1).
+#
+# Required repository secrets:
+#   MODRINTH_TOKEN    - Modrinth PAT with "Create versions" scope
+#   CURSEFORGE_TOKEN  - CurseForge API token
+#
+# Required repository variables (Settings -> Secrets and variables -> Actions -> Variables):
+#   MODRINTH_ID       - Modrinth project id (e.g. DwMSqx5B)
+#   CURSEFORGE_ID     - CurseForge numeric project id (e.g. 980833)
+#   CURSEFORGE_SLUG   - CurseForge project slug (e.g. openshock-shockcraft)
+#
+# Nothing is uploaded unless PUBLISH_RELEASE is true, so this workflow is the only thing that can
+# publish; running publishMods anywhere else is a dry run.
+
+name: release
+on:
+  push:
+    # Version tags carry no prefix. This pattern uses only [] and *, which GitHub's tag filters
+    # definitely support, so a release can never silently fail to trigger.
+    tags:
+      - '[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: setup jdks
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: |
+            17
+            21
+            25
+          distribution: 'temurin'
+
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # The tag is the source of truth for the published version: tag 1.4.0 publishes 1.4.0.
+      #
+      # It also decides the release type in one place so GitHub and the mod platforms cannot
+      # disagree. Stonecraft infers a type from the version string but only recognises alpha,
+      # beta and next - an "rc" tag would otherwise reach Modrinth and CurseForge as stable.
+      # Setting RELEASE_TYPE explicitly overrides that inference.
+      - name: derive version and release type from tag
+        id: version
+        run: |
+          case "$GITHUB_REF_NAME" in
+            *alpha*)            release_type=alpha ;;
+            *beta*|*next*|*rc*) release_type=beta ;;
+            *)                  release_type=stable ;;
+          esac
+          if [ "$release_type" = stable ]; then prerelease=""; else prerelease="--prerelease"; fi
+          {
+            echo "version=$GITHUB_REF_NAME"
+            echo "release_type=$release_type"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+      # An unset variable expands to an empty string, which still counts as "present" to Gradle, so
+      # check before spending ten minutes building only to publish with a blank project id.
+      - name: check publishing credentials
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_ID: ${{ vars.MODRINTH_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_ID: ${{ vars.CURSEFORGE_ID }}
+          CURSEFORGE_SLUG: ${{ vars.CURSEFORGE_SLUG }}
+        run: |
+          missing=""
+          for name in MODRINTH_TOKEN MODRINTH_ID CURSEFORGE_TOKEN CURSEFORGE_ID CURSEFORGE_SLUG; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets/variables:$missing"
+            exit 1
+          fi
+
+      - name: build all versions
+        env:
+          MOD_VERSION: ${{ steps.version.outputs.version }}
+        run: ./gradlew chiseledBuildAndCollect -Pmod.version="$MOD_VERSION" --stacktrace
+
+      - name: create github release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            $PRERELEASE \
+            build/libs/*.jar
+
+      - name: publish to modrinth and curseforge
+        env:
+          PUBLISH_RELEASE: 'true'
+          RELEASE_TYPE: ${{ steps.version.outputs.release_type }}
+          # Point at the GitHub release rather than duplicating its notes on each platform.
+          CHANGELOG: "Full changelog: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_ID: ${{ vars.MODRINTH_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_ID: ${{ vars.CURSEFORGE_ID }}
+          CURSEFORGE_SLUG: ${{ vars.CURSEFORGE_SLUG }}
+          MOD_VERSION: ${{ steps.version.outputs.version }}
+        run: ./gradlew chiseledPublishMods -Pmod.version="$MOD_VERSION" --stacktrace
