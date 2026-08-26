@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
-	"id": "shockcraft",
+	"id": "${id}",
 	"version": "${version}",
-	"name": "ShockCraft",
-	"description": "OpenShock integration for Minecraft",
+	"name": "${name}",
+	"description": "${description}",
 	"authors": [
 		"Luc",
 		"OpenShock Team"
@@ -14,28 +14,28 @@
 		"sources": "https://github.com/OpenShock/Integrations.Minecraft"
 	},
 	"license": "GPL-3.0",
-	"icon": "assets/shockcraft/icon.png",
+	"icon": "assets/${id}/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [
 			{
-				"value": "openshock.integrations.minecraft.ShockCraft",
+				"value": "${group}.platform.FabricEntrypoint",
 				"adapter": "kotlin"
 			}
 		],
 		"modmenu": [
-			"openshock.integrations.minecraft.ModMenuEntryPoint"
+			{
+				"value": "${group}.platform.ModMenuEntrypoint",
+				"adapter": "kotlin"
+			}
 		]
 	},
-	"mixins": [
-		"shockcraft.mixins.json"
-	],
 	"depends": {
-		"fabricloader": ">=0.18.0",
-		"minecraft": "~1.21.10",
-		"java": ">=17",
+		"minecraft": "${mcDepFabric}",
+		"java": ">=${javaVersion}",
+		"fabricloader": "*",
 		"fabric-api": "*",
-		"fabric-language-kotlin": ">=1.13.7+kotlin.2.2.21",
+		"fabric-language-kotlin": ">=${fabricKotlinVersion}",
 		"yet_another_config_lib_v3": "*",
 		"modmenu": "*"
 	},

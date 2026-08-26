@@ -1,19 +1,22 @@
 package openshock.integrations.minecraft
 
-import com.terraformersmc.modmenu.api.ConfigScreenFactory
 import dev.isxander.yacl3.api.*
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder
 import dev.isxander.yacl3.api.controller.StringControllerBuilder
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.text.Text
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
 
-object ConfigGuiFactory : ConfigScreenFactory<Screen> {
+/**
+ * Builds the YACL settings screen. Loader-agnostic: Fabric reaches it through Mod Menu and
+ * NeoForge through IConfigScreenFactory, both in [openshock.integrations.minecraft.platform].
+ */
+object ConfigScreen {
 
-    override fun create(parent: Screen): Screen {
+    fun create(parent: Screen?): Screen {
         val yacl =
             YetAnotherConfigLib.create(ShockCraftConfig.HANDLER) { defaults: ShockCraftConfig, config: ShockCraftConfig, builder: YetAnotherConfigLib.Builder ->
                 createBuilder(
@@ -32,19 +35,19 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
         builder: YetAnotherConfigLib.Builder
     ): YetAnotherConfigLib.Builder {
         return builder
-            .title(Text.literal("ShockCraft - OpenShock Minecraft Integration"))
+            .title(Component.literal("ShockCraft - OpenShock Minecraft Integration"))
             
             .category(
                 ConfigCategory.createBuilder()
-                    .name(Text.literal("Behaviour / Shock Settings"))
+                    .name(Component.literal("Behaviour / Shock Settings"))
                     
                     .group(OptionGroup.createBuilder()
-                        .name(Text.literal("General"))
-                        .description(OptionDescription.of(Text.literal("General settings for the mod")))
+                        .name(Component.literal("General"))
+                        .description(OptionDescription.of(Component.literal("General settings for the mod")))
                         
                         .option(Option.createBuilder<Boolean>()
-                            .name(Text.literal("Display Shocks in Action Bar"))
-                            .description(OptionDescription.of(Text.literal("Displays Shocks or all kinds of commands in the action bar on your screen")))
+                            .name(Component.literal("Display Shocks in Action Bar"))
+                            .description(OptionDescription.of(Component.literal("Displays Shocks or all kinds of commands in the action bar on your screen")))
                             .controller { TickBoxControllerBuilder.create(it) }
                             .binding(defaults.displayShocksInActionBar, { config.displayShocksInActionBar }, { config.displayShocksInActionBar = it })
                             .build()
@@ -52,21 +55,21 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                     )
 
                     .group(OptionGroup.createBuilder()
-                        .name(Text.literal("On Damage"))
-                        .description(OptionDescription.of(Text.literal("Settings for shocking on damage")))
+                        .name(Component.literal("On Damage"))
+                        .description(OptionDescription.of(Component.literal("Settings for shocking on damage")))
 
                         .option(Option.createBuilder<Boolean>()
-                            .name(Text.literal("Enabled"))
-                            .description(OptionDescription.of(Text.literal("Enable shocking on damage")))
+                            .name(Component.literal("Enabled"))
+                            .description(OptionDescription.of(Component.literal("Enable shocking on damage")))
                             .controller { TickBoxControllerBuilder.create(it) }
                             .binding(defaults.onDamage, { config.onDamage }, { config.onDamage = it })
                             .build()
                         )
                         .option(Option.createBuilder<DamageShockMode>()
-                            .name(Text.literal("On Damage Action"))
+                            .name(Component.literal("On Damage Action"))
                             .description(
                                 OptionDescription.of(
-                                    Text.literal(
+                                    Component.literal(
                                         "Defines what happens when you receive damage.\n" +
                                                 "Low Hp = You get shocked at higher intensity the less HP you have\n" +
                                                 "Damage Amount = You get shocked the amount of damage you have received"
@@ -80,7 +83,7 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Minimum Intensity"))
+                            .name(Component.literal("Minimum Intensity"))
                             .controller { option: Option<Int> ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(1, 100)
@@ -93,7 +96,7 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Maximum Intensity"))
+                            .name(Component.literal("Maximum Intensity"))
                             .controller { option: Option<Int> ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(1, 100)
@@ -107,8 +110,8 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                         )
 
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Damage Threshold"))
-                            .description(OptionDescription.of(Text.literal("How much damage you need to take, or have until a shock is sent")))
+                            .name(Component.literal("Damage Threshold"))
+                            .description(OptionDescription.of(Component.literal("How much damage you need to take, or have until a shock is sent")))
                             .controller { option: Option<Int> ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(1, 20)
@@ -122,12 +125,12 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                         )
 
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Cooldown"))
-                            .description(OptionDescription.of(Text.literal("Cooldown between on damage shocks")))
+                            .name(Component.literal("Cooldown"))
+                            .description(OptionDescription.of(Component.literal("Cooldown between on damage shocks")))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(300, 60_000)
-                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
                             }
                             .binding(
                                 defaults.cooldown.toInt(),
@@ -140,18 +143,18 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                     )
 
                     .group(OptionGroup.createBuilder()
-                        .name(Text.literal("On Death"))
-                        .description(OptionDescription.of(Text.literal("Defines what happens when you die")))
+                        .name(Component.literal("On Death"))
+                        .description(OptionDescription.of(Component.literal("Defines what happens when you die")))
 
                         .option(Option.createBuilder<Boolean>()
-                            .name(Text.literal("Enabled"))
-                            .description(OptionDescription.of(Text.literal("Enable shocking on death")))
+                            .name(Component.literal("Enabled"))
+                            .description(OptionDescription.of(Component.literal("Enable shocking on death")))
                             .controller { TickBoxControllerBuilder.create(it) }
                             .binding(defaults.onDeath, { config.onDeath }, { config.onDeath = it })
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Intensity"))
+                            .name(Component.literal("Intensity"))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(1, 100)
@@ -164,11 +167,11 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Duration"))
+                            .name(Component.literal("Duration"))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(300, 30_000)
-                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
                             }
                             .binding(
                                 defaults.onDeathDuration.toInt(),
@@ -181,18 +184,18 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                     )
 
                     .group(OptionGroup.createBuilder()
-                        .name(Text.literal("On Level Up"))
-                        .description(OptionDescription.of(Text.literal("Defines what happens when you gain an XP level")))
+                        .name(Component.literal("On Level Up"))
+                        .description(OptionDescription.of(Component.literal("Defines what happens when you gain an XP level")))
 
                         .option(Option.createBuilder<Boolean>()
-                            .name(Text.literal("Enabled"))
-                            .description(OptionDescription.of(Text.literal("Enable shocking on level up")))
+                            .name(Component.literal("Enabled"))
+                            .description(OptionDescription.of(Component.literal("Enable shocking on level up")))
                             .controller { TickBoxControllerBuilder.create(it) }
                             .binding(defaults.onLevelUp, { config.onLevelUp }, { config.onLevelUp = it })
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Intensity"))
+                            .name(Component.literal("Intensity"))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(1, 100)
@@ -205,11 +208,11 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Duration"))
+                            .name(Component.literal("Duration"))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(300, 30_000)
-                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
                             }
                             .binding(
                                 defaults.onLevelUpDuration.toInt(),
@@ -222,25 +225,25 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                     )
 
                     .group(OptionGroup.createBuilder()
-                        .name(Text.literal("On Chat Message"))
-                        .description(OptionDescription.of(Text.literal("Defines what happens when a specific chat phrase is sent or received")))
+                        .name(Component.literal("On Chat Message"))
+                        .description(OptionDescription.of(Component.literal("Defines what happens when a specific chat phrase is sent or received")))
 
                         .option(Option.createBuilder<Boolean>()
-                            .name(Text.literal("Enable for Chat Messages"))
-                            .description(OptionDescription.of(Text.literal("Enable shocking when a message with the key phrase is sent/received")))
+                            .name(Component.literal("Enable for Chat Messages"))
+                            .description(OptionDescription.of(Component.literal("Enable shocking when a message with the key phrase is sent/received")))
                             .controller { TickBoxControllerBuilder.create(it) }
                             .binding(defaults.onChatEvent, { config.onChatEvent }, { config.onChatEvent = it })
                             .build()
                         )
                         .option(Option.createBuilder<String>()
-                            .name(Text.literal("Key Phrase"))
-                            .description(OptionDescription.of(Text.literal("The phrase to trigger the shock")))
+                            .name(Component.literal("Key Phrase"))
+                            .description(OptionDescription.of(Component.literal("The phrase to trigger the shock")))
                             .controller { StringControllerBuilder.create(it) }
                             .binding(defaults.chatMessagePhrase, { config.chatMessagePhrase }, { config.chatMessagePhrase = it })
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Intensity"))
+                            .name(Component.literal("Intensity"))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(1, 100)
@@ -253,11 +256,11 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                             .build()
                         )
                         .option(Option.createBuilder<Int>()
-                            .name(Text.literal("Duration"))
+                            .name(Component.literal("Duration"))
                             .controller { option ->
                                 IntegerSliderControllerBuilder.create(option)
                                     .range(300, 30_000)
-                                    .step(100).formatValue { Text.literal((it / 1000f).toString() + " seconds") }
+                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
                             }
                             .binding(
                                 defaults.onChatMessageDuration.toInt(),
@@ -274,16 +277,16 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
 
             .category(
                 ConfigCategory.createBuilder()
-                    .name(Text.literal("Setup"))
+                    .name(Component.literal("Setup"))
 
                     // Server group
                     .group(OptionGroup.createBuilder()
-                        .name(Text.literal("Server"))
-                        .description(OptionDescription.of(Text.literal("Server / OpenShock Backend Settings and Shocker Setup")))
+                        .name(Component.literal("Server"))
+                        .description(OptionDescription.of(Component.literal("Server / OpenShock Backend Settings and Shocker Setup")))
                         .option(
                             Option.createBuilder<String>()
-                                .name(Text.literal("API URL"))
-                                .description(OptionDescription.of(Text.literal("The API base URL of the OpenShock Backend. For the official instance this is https://api.openshock.app")))
+                                .name(Component.literal("API URL"))
+                                .description(OptionDescription.of(Component.literal("The API base URL of the OpenShock Backend. For the official instance this is https://api.openshock.app")))
                                 .controller { option: Option<String>? -> StringControllerBuilder.create(option) }
                                 .binding(
                                     defaults.apiBaseUrl,
@@ -293,8 +296,8 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                         )
                         .option(
                             Option.createBuilder<String>()
-                                .name(Text.literal("API Token"))
-                                .description(OptionDescription.of(Text.literal("API Token generated on the web, needs shocker use permission")))
+                                .name(Component.literal("API Token"))
+                                .description(OptionDescription.of(Component.literal("API Token generated on the web, needs shocker use permission")))
                                 .controller { option: Option<String> -> StringControllerBuilder.create(option) }
                                 .binding(
                                     defaults.apiToken,
@@ -307,7 +310,7 @@ object ConfigGuiFactory : ConfigScreenFactory<Screen> {
                     // Shocker group
 
                     .group(ListOption.createBuilder<String>()
-                        .name(Text.literal("Shockers"))
+                        .name(Component.literal("Shockers"))
                         .controller { option: Option<String> -> StringControllerBuilder.create(option) }
                         .binding(
                             defaults.shockers,

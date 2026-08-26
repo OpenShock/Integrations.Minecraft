@@ -3,39 +3,33 @@ package openshock.integrations.minecraft
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import net.fabricmc.api.ClientModInitializer
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.EndTick
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.screen.GameMenuScreen
-import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.entity.damage.DamageSource
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.PauseScreen
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.world.damagesource.DamageSource
 import openshock.integrations.minecraft.api.ControlType
 import openshock.integrations.minecraft.api.OpenShockApi
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
+import openshock.integrations.minecraft.platform.McCompat
 import openshock.integrations.minecraft.utils.MathUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
 
-object ShockCraft : ClientModInitializer {
-    val logger: Logger = LoggerFactory.getLogger("shockcraft")
+/**
+ * Loader-agnostic core of the mod. Everything here compiles against plain Minecraft classes only,
+ * so it is shared verbatim by every Minecraft version and both loaders. The Fabric and NeoForge
+ * entrypoints in [openshock.integrations.minecraft.platform] are the only things that differ.
+ */
+object ShockCraft {
+    const val MOD_ID: String = "shockcraft"
 
-    override fun onInitializeClient() {
-        logger.info("Hello Fabric world!")
+    val logger: Logger = LoggerFactory.getLogger(MOD_ID)
 
+    fun init() {
+        logger.info("ShockCraft starting up")
         ShockCraftConfig.HANDLER.load()
-
-        ClientTickEvents.END_CLIENT_TICK.register(EndTick { clientTickLoopFun() })
-
-        ClientReceiveMessageEvents.CHAT.register { message, _, _, _, _ ->
-            val config = ShockCraftConfig.HANDLER.instance()
-            if (config.onChatEvent) {
-                onChatMessage(message.string)
-            }
-        }
     }
 
     var lastTickHealth: Float = 20f
@@ -45,11 +39,11 @@ object ShockCraft : ClientModInitializer {
     var lastTickXpLevel: Int = 0
 
     val DamageSource?.attackerName: String
-        get() = this?.attacker?.stringifiedName ?: "Unknown"
+        get() = this?.entity?.name?.string ?: "Unknown"
 
     private fun reset() {
         lastTickReset = true
-        val player = MinecraftClient.getInstance().player
+        val player = Minecraft.getInstance().player
 
         if (player == null) {
             lastTickHealth = 20f
@@ -62,12 +56,12 @@ object ShockCraft : ClientModInitializer {
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private fun clientTickLoopFun() {
-        val currentScreen = MinecraftClient.getInstance().currentScreen
+    fun onClientTick() {
+        val currentScreen = McCompat.currentScreen
 
         // Cursed if logic to see if pause menu was opened, might not work with all mods
         if (currentScreen != null) {
-            if (!pauseMenuOpen && currentScreen is GameMenuScreen) {
+            if (!pauseMenuOpen && currentScreen is PauseScreen) {
                 pauseMenuOpen = true
                 logger.debug("Game menu opened")
             }
@@ -82,7 +76,7 @@ object ShockCraft : ClientModInitializer {
             return
         }
 
-        val player = MinecraftClient.getInstance().player
+        val player = Minecraft.getInstance().player
 
         // Player does not exist, reset and return
         if (player == null) {
@@ -114,9 +108,9 @@ object ShockCraft : ClientModInitializer {
 
         // Did we take damage?
         if (damageSinceLastTick > 0) {
-            logger.debug(player.recentDamageSource?.name + " - " + damageSinceLastTick.toString())
+            logger.debug(player.lastDamageSource?.msgId + " - " + damageSinceLastTick.toString())
 
-            if (player.isDead) {
+            if (player.isDeadOrDying) {
                 logger.debug("Player died")
                 GlobalScope.launch {
                     onDeath(player)
@@ -148,8 +142,9 @@ object ShockCraft : ClientModInitializer {
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private fun onChatMessage(message: String) {
+    fun onChatMessage(message: String) {
         val config = ShockCraftConfig.HANDLER.instance()
+        if (!config.onChatEvent) return
         if (config.chatMessagePhrase.isBlank()) return
 
         if (message.contains(config.chatMessagePhrase, ignoreCase = true)) {
@@ -165,7 +160,7 @@ object ShockCraft : ClientModInitializer {
         }
     }
 
-    private suspend fun onDeath(player: ClientPlayerEntity) {
+    private suspend fun onDeath(player: LocalPlayer) {
         val config = ShockCraftConfig.HANDLER.instance()
         if (!config.onDeath) return
 
@@ -173,13 +168,13 @@ object ShockCraft : ClientModInitializer {
             ControlType.Shock,
             config.onDeathIntensity,
             config.onDeathDuration,
-            player.recentDamageSource.attackerName,
+            player.lastDamageSource.attackerName,
         )
     }
 
     private var lastShock: Long = -1
 
-    private suspend fun onDamage(player: ClientPlayerEntity, damage: Float) {
+    private suspend fun onDamage(player: LocalPlayer, damage: Float) {
         val config = ShockCraftConfig.HANDLER.instance()
         if (!config.onDamage) return
 
@@ -224,7 +219,7 @@ object ShockCraft : ClientModInitializer {
             ControlType.Shock,
             intensity,
             duration,
-            player.recentDamageSource.attackerName,
+            player.lastDamageSource.attackerName,
         )
     }
 }

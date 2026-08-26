@@ -1,0 +1,43 @@
+# Kotlin for Forge provides the Kotlin runtime and the object-declaration @Mod entrypoint.
+modLoader = "kotlinforforge"
+loaderVersion = "[5.0,)"
+license = "GPL-3.0"
+issueTrackerURL = "https://github.com/OpenShock/Integrations.Minecraft/issues"
+
+[[mods]]
+modId = "${id}"
+version = "${version}"
+displayName = "${name}"
+description = '''${description}'''
+authors = "Luc, OpenShock Team"
+logoFile = "assets/${id}/icon.png"
+logoBlur = false
+displayURL = "https://openshock.org/"
+
+[[dependencies.${id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${mcDepNeoforge}"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforgeVersion},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "kotlinforforge"
+type = "required"
+versionRange = "[${kffVersion},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "yet_another_config_lib_v3"
+type = "required"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "CLIENT"
