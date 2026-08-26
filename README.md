@@ -96,7 +96,18 @@ git tag 1.4.0 && git push origin 1.4.0
 
 The tag is the source of truth for the version (tag `1.4.0` publishes `1.4.0`), so `mod.version` in
 `gradle.properties` does not need bumping first. The changelog on Modrinth and CurseForge is a link
-back to the GitHub release, so the notes only ever live in one place. A tag containing `beta` or `alpha` is published as a pre-release.
+back to the GitHub release, so the notes only ever live in one place.
+
+The tag also decides the release type, consistently across all three destinations:
+
+| Tag contains | Modrinth / CurseForge | GitHub release |
+|---|---|---|
+| `alpha` | Alpha | pre-release |
+| `beta`, `next`, `rc` | Beta | pre-release |
+| anything else | Stable | normal |
+
+`rc` needs an explicit mapping because Stonecraft's own inference recognises only `alpha`, `beta`
+and `next`; left to it, an `rc` tag would reach both platforms marked stable.
 
 Configure these under **Settings -> Secrets and variables -> Actions**:
 

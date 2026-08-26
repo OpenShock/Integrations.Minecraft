@@ -1,6 +1,8 @@
 # Kotlin for Forge provides the Kotlin runtime and the object-declaration @Mod entrypoint.
+# The range has to track the target's KFF version - 1.20.x builds against 4.x, and a hard-coded
+# [5.0,) would make FML reject the jar outright.
 modLoader = "kotlinforforge"
-loaderVersion = "[5.0,)"
+loaderVersion = "[${kffVersion},)"
 license = "GPL-3.0"
 issueTrackerURL = "https://github.com/OpenShock/Integrations.Minecraft/issues"
 
@@ -12,10 +14,10 @@ description = '''${description}'''
 authors = "Luc, OpenShock Team"
 # NeoForge 26.2 deprecated logoFile in favour of iconFile (square) and bannerFile (wide).
 #? if >=26.2 {
-#iconFile = "assets/${id}/icon.png"
+iconFile = "assets/${id}/icon.png"
 #?} else {
-logoFile = "assets/${id}/icon.png"
-logoBlur = false
+#logoFile = "assets/${id}/icon.png"
+#logoBlur = false
 #?}
 displayURL = "https://openshock.org/"
 

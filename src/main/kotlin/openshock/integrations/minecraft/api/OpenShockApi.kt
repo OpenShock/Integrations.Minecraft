@@ -8,10 +8,12 @@ import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.net.http.HttpTimeoutException
 import java.time.Duration
 
 object OpenShockApi {
@@ -20,10 +22,18 @@ object OpenShockApi {
 
     private const val SUFFIX: String = " (Integrations.Minecraft)"
 
+    private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
+
+    // connectTimeout only bounds connection setup, so without this a stalled server would leave
+    // the request hanging on a Dispatchers.IO thread forever.
+    private val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(15)
+
     // The JDK client keeps us free of a shaded HTTP library, which would otherwise have to be
-    // bundled differently for each loader.
+    // bundled differently for each loader. OkHttp followed redirects by default; the JDK client
+    // does not, so it has to be asked for explicitly or a 3xx would silently drop the POST.
     private val client: HttpClient = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(10))
+        .connectTimeout(CONNECT_TIMEOUT)
+        .followRedirects(HttpClient.Redirect.NORMAL)
         .build()
 
     suspend fun control(type: ControlType, intensity: Byte, duration: UShort, name: String) {
@@ -45,10 +55,27 @@ object OpenShockApi {
                 "Integrations.Minecraft/1.0.0 (Minecraft ${Minecraft.getInstance().launchedVersion}; Java ${System.getProperty("java.version")})"
             )
             .POST(HttpRequest.BodyPublishers.ofString(json))
+            .timeout(REQUEST_TIMEOUT)
             .build()
 
-        val response = withContext(Dispatchers.IO) {
-            client.send(request, HttpResponse.BodyHandlers.ofString())
+        // A network failure must not escape into the coroutine's uncaught handler - the shock is
+        // fire-and-forget, so log it and give up rather than take the game down with us.
+        val response = try {
+            withContext(Dispatchers.IO) {
+                client.send(request, HttpResponse.BodyHandlers.ofString())
+            }
+        } catch (e: HttpTimeoutException) {
+            // Must precede IOException: HttpTimeoutException is a subclass of it.
+            logger.error("Timed out sending $type to the OpenShock API after $REQUEST_TIMEOUT", e)
+            return
+        } catch (e: IOException) {
+            logger.error("Failed to send $type to the OpenShock API", e)
+            return
+        }
+
+        if (response.statusCode() !in 200..299) {
+            logger.error("OpenShock API returned ${response.statusCode()}: ${response.body()}")
+            return
         }
 
         logger.debug(response.body())

@@ -8,7 +8,7 @@ plugins {
     kotlin("jvm") version "2.4.0" apply false
 }
 
-stonecutter active "1.20.4-neoforge" /* [SC] DO NOT EDIT */
+stonecutter active "26.2-fabric" /* [SC] DO NOT EDIT */
 
 // Architectury Loom generates its own "Minecraft Client (:target)" run configurations, but those
 // are Application configs that need the IDE's per-target modules to exist, so they only work after

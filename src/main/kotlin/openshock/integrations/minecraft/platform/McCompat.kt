@@ -5,10 +5,10 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 
 //? if >=1.21.11 {
-/*import net.minecraft.resources.Identifier as ModIdentifier
-*///?} else {
-import net.minecraft.resources.ResourceLocation as ModIdentifier
-//?}
+import net.minecraft.resources.Identifier as ModIdentifier
+//?} else {
+/*import net.minecraft.resources.ResourceLocation as ModIdentifier
+*///?}
 
 /**
  * The only place where vanilla's own API drifts across the supported Minecraft versions.
@@ -21,20 +21,20 @@ object McCompat {
     val currentScreen: Screen?
         get() {
             //? if >=26.2 {
-            /*return Minecraft.getInstance().gui.screen()
-            *///?} else {
-            return Minecraft.getInstance().screen
-            //?}
+            return Minecraft.getInstance().gui.screen()
+            //?} else {
+            /*return Minecraft.getInstance().screen
+            *///?}
         }
 
     /** `displayClientMessage(text, true)` was split out into `sendOverlayMessage(text)` in 26.1. */
     fun sendActionBar(text: Component) {
         val player = Minecraft.getInstance().player ?: return
         //? if >=26.1 {
-        /*player.sendOverlayMessage(text)
-        *///?} else {
-        player.displayClientMessage(text, true)
-        //?}
+        player.sendOverlayMessage(text)
+        //?} else {
+        /*player.displayClientMessage(text, true)
+        *///?}
     }
 
     /**
@@ -43,9 +43,9 @@ object McCompat {
      */
     fun identifier(namespace: String, path: String): ModIdentifier {
         //? if >=1.21 {
-        /*return ModIdentifier.fromNamespaceAndPath(namespace, path)
-        *///?} else {
-        return ModIdentifier(namespace, path)
-        //?}
+        return ModIdentifier.fromNamespaceAndPath(namespace, path)
+        //?} else {
+        /*return ModIdentifier(namespace, path)
+        *///?}
     }
 }
