@@ -10,8 +10,13 @@ version = "${version}"
 displayName = "${name}"
 description = '''${description}'''
 authors = "Luc, OpenShock Team"
-logoFile = "assets/${id}/icon.png"
-logoBlur = false
+# NeoForge 26.2 deprecated logoFile in favour of iconFile (square) and bannerFile (wide).
+#? if >=26.2 {
+iconFile = "assets/${id}/icon.png"
+#?} else {
+#logoFile = "assets/${id}/icon.png"
+#logoBlur = false
+#?}
 displayURL = "https://openshock.org/"
 
 [[dependencies.${id}]]

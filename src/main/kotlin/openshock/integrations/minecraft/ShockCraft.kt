@@ -38,8 +38,20 @@ object ShockCraft {
 
     var lastTickXpLevel: Int = 0
 
+    /**
+     * A human-readable label for what hurt us, used as the OpenShock control name.
+     *
+     * The server only sends a causing/direct entity when something actually attacked you, so
+     * environmental damage (fall, lava, drowning, fire, cactus, ...) has neither. In that case fall
+     * back to the damage type id, which is what vanilla names the death message after.
+     */
     val DamageSource?.attackerName: String
-        get() = this?.entity?.name?.string ?: "Unknown"
+        get() {
+            if (this == null) return "Unknown"
+            // getEntity() is the mob/player behind it, getDirectEntity() the projectile it used.
+            val attacker = this.entity ?: this.directEntity
+            return attacker?.name?.string ?: this.msgId
+        }
 
     private fun reset() {
         lastTickReset = true
