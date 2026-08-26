@@ -12,10 +12,10 @@ description = '''${description}'''
 authors = "Luc, OpenShock Team"
 # NeoForge 26.2 deprecated logoFile in favour of iconFile (square) and bannerFile (wide).
 #? if >=26.2 {
-iconFile = "assets/${id}/icon.png"
+#iconFile = "assets/${id}/icon.png"
 #?} else {
-#logoFile = "assets/${id}/icon.png"
-#logoBlur = false
+logoFile = "assets/${id}/icon.png"
+logoBlur = false
 #?}
 displayURL = "https://openshock.org/"
 

@@ -41,6 +41,11 @@ repositories {
         forRepository { maven("https://thedarkcolour.github.io/KotlinForForge/") }
         filter { includeGroup("thedarkcolour") }
     }
+    // Mod Menu 9.x (Minecraft 1.20.x) pulls in Patbox's placeholder-api, published only here.
+    exclusiveContent {
+        forRepository { maven("https://maven.nucleoid.xyz/") }
+        filter { includeGroup("eu.pb4") }
+    }
 }
 
 kotlin {
