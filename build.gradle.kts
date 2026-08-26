@@ -98,6 +98,50 @@ modSettings {
     variableReplacements.put("mcDepNeoforge", mod.prop("mc_dep_neoforge"))
 }
 
+// Stonecraft already wires the Modrinth/CurseForge credentials, jar, version and display name
+// from environment variables; only the things unique to this mod belong here.
+// Stonecraft only configures a platform when its credentials are present, so these blocks have to
+// be guarded the same way - declaring them unconditionally leaves projectId unset and fails the
+// task on any machine without the secrets.
+fun hasEnv(vararg names: String) = names.all { providers.environmentVariable(it).isPresent }
+val publishToModrinth = hasEnv("MODRINTH_TOKEN", "MODRINTH_ID")
+val publishToCurseforge = hasEnv("CURSEFORGE_TOKEN", "CURSEFORGE_ID", "CURSEFORGE_SLUG")
+
+publishMods {
+    // Stonecraft derives dryRun from DO_PUBLISH, but its docs and its code disagree about which
+    // way round that is. Publishing is not reversible, so decide it here instead: nothing is
+    // uploaded unless PUBLISH_RELEASE is explicitly true.
+    dryRun = !providers.environmentVariable("PUBLISH_RELEASE").getOrElse("false").toBoolean()
+
+    // Stonecraft defaults the changelog to the contents of CHANGELOG.md. The release workflow
+    // passes the GitHub release body instead, so a tag's notes reach both platforms.
+    providers.environmentVariable("CHANGELOG").orNull?.let { changelog = it }
+
+    if (publishToModrinth) modrinth {
+        requires("yacl")
+        if (mod.isFabric) {
+            requires("fabric-api")
+            requires("fabric-language-kotlin")
+            requires("modmenu")
+        } else {
+            requires("kotlin-for-forge")
+        }
+    }
+
+    if (publishToCurseforge) curseforge {
+        client = true
+        server = false
+        requires("yacl")
+        if (mod.isFabric) {
+            requires("fabric-api")
+            requires("fabric-language-kotlin")
+            requires("modmenu")
+        } else {
+            requires("kotlin-for-forge")
+        }
+    }
+}
+
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget = JvmTarget.fromTarget(javaVersion.toString())
     dependsOn("stonecutterGenerate")

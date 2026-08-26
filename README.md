@@ -85,6 +85,43 @@ edits.
 Each target runs in its own directory, `run/<version>-<loader>/`, because Minecraft 1.21.1 and 26.2
 cannot share a world or an options file and the two loaders cannot share a mods folder.
 
+### Releasing
+
+Pushing a version tag runs `.github/workflows/release.yml`, which builds all targets, creates a
+GitHub release with the jars attached, and publishes every one of them to Modrinth and CurseForge.
+
+```bash
+git tag 1.4.0 && git push origin 1.4.0
+```
+
+The tag is the source of truth for the version (tag `1.4.0` publishes `1.4.0`), so `mod.version` in
+`gradle.properties` does not need bumping first. The changelog on Modrinth and CurseForge is a link
+back to the GitHub release, so the notes only ever live in one place. A tag containing `beta` or `alpha` is published as a pre-release.
+
+Configure these under **Settings -> Secrets and variables -> Actions**:
+
+| Secret | |
+|---|---|
+| `MODRINTH_TOKEN` | Modrinth PAT with the "Create versions" scope |
+| `CURSEFORGE_TOKEN` | CurseForge API token |
+
+| Variable | Current value |
+|---|---|
+| `MODRINTH_ID` | `DwMSqx5B` |
+| `CURSEFORGE_ID` | `980833` |
+| `CURSEFORGE_SLUG` | `openshock-shockcraft` |
+
+The workflow checks all five are set before building, so a missing one fails in seconds with a
+clear message rather than part-way through publishing.
+
+Nothing is ever uploaded unless `PUBLISH_RELEASE=true`, which only the release workflow sets, so
+running `./gradlew chiseledPublishMods` locally is always a dry run. Use it to preview exactly what
+would be sent:
+
+```bash
+./gradlew chiseledPublishMods
+```
+
 ### Layout
 
 - `settings.gradle.kts` — the list of targets. Adding a Minecraft version is one line here plus a
