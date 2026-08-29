@@ -41,6 +41,28 @@ class ShockCraftConfig {
     @SerialEntry
     var cooldown: UShort = 500u
 
+    /**
+     * Which kinds of damage may shock you. Everything by default, so an existing config - which
+     * has no such key - keeps behaving exactly as it did before the filter existed.
+     *
+     * Only ever read with `in` and written by adding or removing a single entry: a name this
+     * version does not know (an old bucket, or a hand-edited file) deserialises to null, and those
+     * operations leave it alone instead of tripping over it.
+     */
+    @SerialEntry(comment = "Kinds of damage that are allowed to trigger an on damage shock")
+    var damageCategories: List<DamageCategory> = DamageCategory.entries.toList()
+
+    @SerialEntry(comment = "Whether on damage shocks are filtered by category or by exact damage type")
+    var damageFilterMode: DamageFilterMode = DamageFilterMode.Categories
+
+    /**
+     * Damage type ids, `minecraft:cactus` and the like, used instead of [damageCategories] when
+     * the mode is [DamageFilterMode.DamageTypes]. Empty by default because the ids that exist
+     * depend on the world - there is no sensible list to write here without one.
+     */
+    @SerialEntry(comment = "Exact damage types allowed to trigger an on damage shock, used when damageFilterMode is DamageTypes")
+    var damageTypes: List<String> = ArrayList()
+
 
     // <--- On Death --->
 

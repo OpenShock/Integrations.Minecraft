@@ -2,7 +2,9 @@ package openshock.integrations.minecraft.platform
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
+import net.minecraft.world.damagesource.DamageSource
 
 //? if >=1.21.11 {
 import net.minecraft.resources.Identifier as ModIdentifier
@@ -44,6 +46,45 @@ object McCompat {
         //?} else {
         /*player.displayClientMessage(text, true)
         *///?}
+    }
+
+    /**
+     * The registry id of what hurt us, e.g. `minecraft:cactus`.
+     *
+     * Null when the client was never told: the damage type travels in the damage packet, so a hit
+     * we only noticed as health going down has nothing to look up.
+     *
+     * `ResourceKey.location` was renamed to `identifier` in 1.21.11, along with the type it returns.
+     */
+    fun damageTypeId(source: DamageSource?): String? {
+        val key = source?.typeHolder()?.unwrapKey()?.orElse(null) ?: return null
+
+        //? if >=1.21.11 {
+        return key.identifier().toString()
+        //?} else {
+        /*return key.location().toString()
+        *///?}
+    }
+
+    /**
+     * Every damage type id the world we are in knows, sorted, or empty when there is no world.
+     *
+     * The damage type registry is sent by the server, so this is the only way to see the ones a
+     * datapack or another mod added - and the reason the config screen can only offer the exact
+     * type list while in a world.
+     *
+     * `RegistryAccess.registryOrThrow` was renamed to `lookupOrThrow` in 1.21.4.
+     */
+    fun damageTypeIds(): List<String> {
+        val level = Minecraft.getInstance().level ?: return emptyList()
+
+        //? if >=1.21.4 {
+        val registry = level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
+        //?} else {
+        /*val registry = level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE)
+        *///?}
+
+        return registry.keySet().map { it.toString() }.sorted()
     }
 
     /**

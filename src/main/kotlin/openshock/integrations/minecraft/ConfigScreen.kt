@@ -12,6 +12,8 @@ import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.api.Shocker
 import openshock.integrations.minecraft.api.ShockerCatalog
 import openshock.integrations.minecraft.config.AccountConfig
+import openshock.integrations.minecraft.config.DamageCategory
+import openshock.integrations.minecraft.config.DamageFilterMode
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
@@ -178,6 +180,8 @@ object ConfigScreen {
                         .build()
                     )
 
+                    .groups(damageFilterGroups(defaults, config))
+
                     .group(OptionGroup.createBuilder()
                         .name(Component.literal("On Death"))
                         .description(OptionDescription.of(Component.literal("Defines what happens when you die")))
@@ -312,6 +316,128 @@ object ConfigScreen {
             )
 
             .category(setupCategory(accountDefaults, account, parent))
+    }
+
+    /**
+     * The damage filter: a mode switch, the nine [DamageCategory] checkboxes, and the exact damage
+     * type picker the mode can hand over to.
+     *
+     * Both lists are always on screen, and the mode greys out whichever one is not in charge -
+     * built as a listener rather than by leaving options out, because YACL fixes the option list
+     * when the screen is created and the mode can be changed after that.
+     *
+     * Every checkbox setter only adds or removes its own entry, the same trick the shocker picker
+     * uses: the order YACL applies them in cannot matter, and an entry this version does not
+     * recognise rides along untouched instead of being dropped.
+     */
+    private fun damageFilterGroups(defaults: ShockCraftConfig, config: ShockCraftConfig): List<OptionGroup> {
+        val categoryOptions = DamageCategory.entries.map { category ->
+            Option.createBuilder<Boolean>()
+                .name(Component.literal(category.displayName))
+                .description(OptionDescription.of(Component.literal(category.help)))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .available(config.damageFilterMode == DamageFilterMode.Categories)
+                .binding(
+                    category in defaults.damageCategories,
+                    { category in config.damageCategories },
+                    { checked ->
+                        val without = config.damageCategories - category
+                        config.damageCategories = if (checked) without + category else without
+                    })
+                .build()
+        }
+
+        // Only a loaded world knows its damage types, so from the title screen there is nothing to
+        // list and the manual entries below are the only way in.
+        val available = McCompat.damageTypeIds()
+        val known = available.toSet()
+
+        val selected = LinkedHashSet(config.damageTypes.filter { it in known })
+        var manual: List<String> = config.damageTypes.filterNot { it in known }
+
+        fun commit() {
+            config.damageTypes = (selected + manual).distinct()
+        }
+
+        val byTypeAvailable = config.damageFilterMode == DamageFilterMode.DamageTypes
+
+        val typeOptions = available.map { id ->
+            Option.createBuilder<Boolean>()
+                .name(Component.literal(id.removePrefix("minecraft:")))
+                .description(OptionDescription.of(Component.literal(id)))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .available(byTypeAvailable)
+                .binding(
+                    false,
+                    { id in selected },
+                    { checked ->
+                        if (checked) selected.add(id) else selected.remove(id)
+                        commit()
+                    })
+                .build()
+        }
+
+        val manualTypes = ListOption.createBuilder<String>()
+            .name(Component.literal("Damage Type IDs (manual)"))
+            .description(OptionDescription.of(Component.literal(
+                "Damage type ids entered by hand, used on top of the ones ticked above.\n\n" +
+                        "Only needed for a type this world does not have, or when the settings are opened from the title screen where there is no world to ask"
+            )))
+            .controller { StringControllerBuilder.create(it) }
+            .available(byTypeAvailable)
+            .binding(
+                emptyList(),
+                { manual },
+                {
+                    manual = it
+                    commit()
+                })
+            .initial("minecraft:cactus")
+            .collapsed(available.isNotEmpty() && manual.isEmpty())
+            .build()
+
+        val mode = Option.createBuilder<DamageFilterMode>()
+            .name(Component.literal("Filter by"))
+            .description(OptionDescription.of(Component.literal(
+                "Which list decides whether damage may shock you.\n\n" +
+                        "Categories = the nine buckets below, every kind of damage falls into exactly one of them\n" +
+                        "Exact damage types = the ids further down, for when the buckets are not fine grained enough"
+            )))
+            .controller { EnumControllerBuilder.create(it).enumClass(DamageFilterMode::class.java) }
+            .binding(defaults.damageFilterMode, { config.damageFilterMode }, { config.damageFilterMode = it })
+            .listener { _, value ->
+                categoryOptions.forEach { it.setAvailable(value == DamageFilterMode.Categories) }
+                (typeOptions + manualTypes).forEach { it.setAvailable(value == DamageFilterMode.DamageTypes) }
+            }
+            .build()
+
+        val categories = OptionGroup.createBuilder()
+            .name(Component.literal("Damage Types"))
+            .description(OptionDescription.of(Component.literal(
+                "Which damage is allowed to shock you.\n\n" +
+                        "This filters On Damage only - dying is still up to the On Death settings"
+            )))
+            .option(mode)
+            .options(categoryOptions)
+            .build()
+
+        val exact = OptionGroup.createBuilder()
+            .name(Component.literal("Exact Damage Types"))
+            .description(OptionDescription.of(Component.literal(
+                "Every damage type this world has, including the ones datapacks and other mods added.\n\n" +
+                        "Used when Filter by is set to exact damage types"
+            )))
+            .collapsed(true)
+            .apply {
+                if (available.isEmpty()) {
+                    option(LabelOption.create(Component.literal("Join a world to list its damage types")))
+                }
+            }
+            .options(typeOptions)
+            .build()
+
+        // A ListOption is its own group, so it goes into the category alongside the other two.
+        return listOf(categories, exact, manualTypes)
     }
 
     /**

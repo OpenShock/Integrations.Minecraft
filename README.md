@@ -16,6 +16,7 @@
 - Shock on Death
 - Shock on Damage
 - Multiple on damage modes
+- Filter which kinds of damage may shock you, by category or by exact damage type
 - Threshold of damage
 - Cooldown between damage shocks
 - Adjustible intensity and duration

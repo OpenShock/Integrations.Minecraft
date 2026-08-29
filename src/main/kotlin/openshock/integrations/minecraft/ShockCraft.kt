@@ -10,6 +10,7 @@ import net.minecraft.world.damagesource.DamageSource
 import openshock.integrations.minecraft.api.ControlType
 import openshock.integrations.minecraft.api.OpenShockApi
 import openshock.integrations.minecraft.config.AccountConfig
+import openshock.integrations.minecraft.config.DamageFilter
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
@@ -125,7 +126,9 @@ object ShockCraft {
 
         // Did we take damage?
         if (damageSinceLastTick > 0) {
-            logger.debug(player.lastDamageSource?.msgId + " - " + damageSinceLastTick.toString())
+            // The exact id rather than the message id, so the log names damage the same way the
+            // Exact Damage Types picker does and can be copied straight into the manual list.
+            logger.debug("{} - {}", DamageFilter.describe(player.lastDamageSource), damageSinceLastTick)
 
             if (player.isDeadOrDying) {
                 logger.debug("Player died")
@@ -194,6 +197,13 @@ object ShockCraft {
     private suspend fun onDamage(player: LocalPlayer, damage: Float) {
         val config = ShockCraftConfig.HANDLER.instance()
         if (!config.onDamage) return
+
+        // Ahead of the cooldown on purpose: a hit that is filtered out must not take the cooldown
+        // with it and swallow the next one that would have counted.
+        if (!DamageFilter.allows(config, player.lastDamageSource)) {
+            logger.debug("Ignoring {} damage, it is switched off", DamageFilter.describe(player.lastDamageSource))
+            return
+        }
 
         val currentTime = Calendar.getInstance().timeInMillis
         if (lastShock + config.cooldown.toLong() > currentTime) {
