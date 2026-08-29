@@ -9,6 +9,7 @@ import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.damagesource.DamageSource
 import openshock.integrations.minecraft.api.ControlType
 import openshock.integrations.minecraft.api.OpenShockApi
+import openshock.integrations.minecraft.config.AccountConfig
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
@@ -30,6 +31,10 @@ object ShockCraft {
     fun init() {
         logger.info("ShockCraft starting up")
         ShockCraftConfig.HANDLER.load()
+
+        // Re-saving after a migration rewrites the instance config without the credential fields,
+        // so the token stops living in the file that gets shared with modpacks and bug reports.
+        if (AccountConfig.loadOrMigrate()) ShockCraftConfig.HANDLER.save()
     }
 
     var lastTickHealth: Float = 20f

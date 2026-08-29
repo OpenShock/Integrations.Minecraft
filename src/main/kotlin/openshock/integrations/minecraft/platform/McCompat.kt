@@ -27,6 +27,15 @@ object McCompat {
             *///?}
         }
 
+    /** `Minecraft.setScreen` moved onto `Gui` in 26.2, the same way [currentScreen] did. */
+    fun setScreen(screen: Screen) {
+        //? if >=26.2 {
+        Minecraft.getInstance().gui.setScreen(screen)
+        //?} else {
+        /*Minecraft.getInstance().setScreen(screen)
+        *///?}
+    }
+
     /** `displayClientMessage(text, true)` was split out into `sendOverlayMessage(text)` in 26.1. */
     fun sendActionBar(text: Component) {
         val player = Minecraft.getInstance().player ?: return

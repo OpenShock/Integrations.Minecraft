@@ -1,4 +1,5 @@
 import gg.meza.stonecraft.mod
+import net.fabricmc.loom.api.LoomGradleExtensionAPI
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -89,6 +90,18 @@ modSettings {
     // would be silently ignored.
     runDirectory = rootProject.layout.projectDirectory.dir("run/${stonecutter.current.project}")
 
+    // Written into <runDirectory>/options.txt by configureMinecraftClient, which runClient depends
+    // on. These are forced on every launch, so changing them in game does not stick - only pin the
+    // ones worth having identical in every target. Anything else options.txt understands can go in
+    // additionalLines, e.g. additionalLines.put("maxFps", "120").
+    clientOptions {
+        fov = 110
+        guiScale = 2
+        narrator = false
+        musicVolume = 0.0
+        additionalLines.put("maxFps", "170")
+    }
+
     // Exposed to fabric.mod.json / neoforge.mods.toml as ${...}
     variableReplacements.put("yaclVersion", mod.prop("yacl_version"))
     variableReplacements.put("fabricKotlinVersion", mod.prop("fabric_kotlin_version"))
@@ -96,6 +109,23 @@ modSettings {
     variableReplacements.put("javaVersion", javaVersion.toString())
     variableReplacements.put("mcDepFabric", mod.prop("mc_dep_fabric"))
     variableReplacements.put("mcDepNeoforge", mod.prop("mc_dep_neoforge"))
+}
+
+// The in-game name for dev runs. Set dev_username in your own gradle.properties (this file's, or
+// ~/.gradle/gradle.properties) to play as yourself; unset it stays on Stonecraft's "developer".
+//
+// Stonecraft pins --username=developer on the client run inside its own afterEvaluate, so this has
+// to run in a later one to win - the same ordering caveat as runDirectory above. Replacing rather
+// than appending, because two --username arguments would leave the choice to the argument parser.
+afterEvaluate {
+    val username = providers.gradleProperty("dev_username").getOrElse("developer")
+
+    extensions.getByType<LoomGradleExtensionAPI>().runConfigs.named("client") {
+        val existing = programArguments.get()
+        programArguments.set(
+            existing.filterNot { it.startsWith("--username") } + "--username=$username"
+        )
+    }
 }
 
 // Stonecraft already wires the Modrinth/CurseForge credentials, jar, version and display name

@@ -8,25 +8,12 @@ import openshock.integrations.minecraft.platform.McCompat
 import openshock.integrations.minecraft.platform.Platform
 
 
+/**
+ * The per-instance half of the config. Everything account-scoped - backend URL, API token,
+ * shockers - lives in [AccountConfig] outside of the Minecraft instance, so this file stays safe
+ * to ship with a modpack or attach to a bug report.
+ */
 class ShockCraftConfig {
-
-    // <--- Server --->
-
-    @SerialEntry(comment = "Base API Url of the OpenShock Backend. Official instance: https://api.openshock.app")
-    var apiBaseUrl: String = "https://api.openshock.app"
-
-    @SerialEntry(comment = "API Token generated on the web")
-    var apiToken: String = ""
-
-    @SerialEntry(comment = "Accept TLS certificates that are not signed by a trusted CA (self-signed). Only for self hosted instances, this disables a security check")
-    var ignoreCertificateErrors: Boolean = false
-
-
-    // <--- Shockers --->
-
-    @SerialEntry(comment = "Shockers to use")
-    var shockers: List<String> = ArrayList()
-
 
     // <--- On Damage --->
 
@@ -97,11 +84,13 @@ class ShockCraftConfig {
     var displayShocksInActionBar: Boolean = true
 
     companion object {
+        const val FILE_NAME: String = "ShockCraft.json5"
+
         var HANDLER: ConfigClassHandler<ShockCraftConfig> = ConfigClassHandler.createBuilder(ShockCraftConfig::class.java)
             .id(McCompat.identifier("shockcraft", "config"))
             .serializer { config: ConfigClassHandler<ShockCraftConfig?>? ->
                 GsonConfigSerializerBuilder.create(config)
-                    .setPath(Platform.configDir.resolve("ShockCraft.json5"))
+                    .setPath(Platform.configDir.resolve(FILE_NAME))
                     .appendGsonBuilder(GsonBuilder::setPrettyPrinting) // not needed, pretty print by default
                     .setJson5(true)
                     .build()
