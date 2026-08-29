@@ -45,18 +45,29 @@ object ShockCraft {
     var lastTickXpLevel: Int = 0
 
     /**
-     * A human-readable label for what hurt us, used as the OpenShock control name.
+     * What a shock is sent under: who hurt us and how, e.g. `Zombie (mob_attack)`. It becomes the
+     * OpenShock control name and, with the action bar switched on, what you read on screen.
+     *
+     * Both halves earn their place - "Zombie" alone does not say whether that was a hit or its
+     * arrow, and a bare type does not say who threw it. The type is spelled the way the config
+     * screen lists it, so a name you see here can be found in the Exact Damage Types picker.
      *
      * The server only sends a causing/direct entity when something actually attacked you, so
-     * environmental damage (fall, lava, drowning, fire, cactus, ...) has neither. In that case fall
-     * back to the damage type id, which is what vanilla names the death message after.
+     * environmental damage (fall, lava, drowning, fire, cactus, ...) has neither and is left as
+     * the type on its own.
      */
-    val DamageSource?.attackerName: String
+    val DamageSource?.controlName: String
         get() {
             if (this == null) return "Unknown"
+
             // getEntity() is the mob/player behind it, getDirectEntity() the projectile it used.
-            val attacker = this.entity ?: this.directEntity
-            return attacker?.name?.string ?: this.msgId
+            val attacker = (this.entity ?: this.directEntity)?.name?.string
+
+            // msgId is the fallback for a hit whose type never reached the client: it is what
+            // vanilla names the death message after, so it still reads like something.
+            val type = DamageFilter.typeIdOf(this)?.let(DamageFilter::shortName) ?: this.msgId
+
+            return if (attacker == null) type else "$attacker ($type)"
         }
 
     private fun reset() {
@@ -188,7 +199,7 @@ object ShockCraft {
             ControlType.Shock,
             config.onDeathIntensity,
             config.onDeathDuration,
-            player.lastDamageSource.attackerName,
+            player.lastDamageSource.controlName,
         )
     }
 
@@ -246,7 +257,7 @@ object ShockCraft {
             ControlType.Shock,
             intensity,
             duration,
-            player.lastDamageSource.attackerName,
+            player.lastDamageSource.controlName,
         )
     }
 }

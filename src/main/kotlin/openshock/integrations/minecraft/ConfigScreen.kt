@@ -13,6 +13,7 @@ import openshock.integrations.minecraft.api.Shocker
 import openshock.integrations.minecraft.api.ShockerCatalog
 import openshock.integrations.minecraft.config.AccountConfig
 import openshock.integrations.minecraft.config.DamageCategory
+import openshock.integrations.minecraft.config.DamageFilter
 import openshock.integrations.minecraft.config.DamageFilterMode
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
@@ -363,7 +364,7 @@ object ConfigScreen {
 
         val typeOptions = available.map { id ->
             Option.createBuilder<Boolean>()
-                .name(Component.literal(id.removePrefix("minecraft:")))
+                .name(Component.literal(DamageFilter.shortName(id)))
                 .description(OptionDescription.of(Component.literal(id)))
                 .controller { TickBoxControllerBuilder.create(it) }
                 .available(byTypeAvailable)

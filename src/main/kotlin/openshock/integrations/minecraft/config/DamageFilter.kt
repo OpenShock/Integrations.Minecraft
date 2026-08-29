@@ -28,4 +28,12 @@ object DamageFilter {
 
     /** What to call a hit in the log: its exact type when we know it, its bucket otherwise. */
     fun describe(source: DamageSource?): String = typeIdOf(source) ?: DamageCategory.of(source).name
+
+    /**
+     * A type id the way the config screen labels it: vanilla without its namespace, everything
+     * else in full so a modded type stays unambiguous.
+     *
+     * Shared with the shock name, so what you read on screen matches what you tick in the picker.
+     */
+    fun shortName(typeId: String): String = typeId.removePrefix("minecraft:")
 }
