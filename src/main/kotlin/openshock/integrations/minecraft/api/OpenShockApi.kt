@@ -14,7 +14,12 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.time.Duration
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 object OpenShockApi {
 
@@ -31,10 +36,28 @@ object OpenShockApi {
     // The JDK client keeps us free of a shaded HTTP library, which would otherwise have to be
     // bundled differently for each loader. OkHttp followed redirects by default; the JDK client
     // does not, so it has to be asked for explicitly or a 3xx would silently drop the POST.
-    private val client: HttpClient = HttpClient.newBuilder()
+    private val client: HttpClient = newClientBuilder().build()
+
+    // A separate client rather than a reconfigured shared one, so the validating path stays
+    // untouched, and lazy so the trust-everything context only ever exists if the user opted in.
+    private val insecureClient: HttpClient by lazy {
+        logger.warn("Certificate validation is disabled - the connection to the OpenShock API is not protected against interception")
+
+        val trustEverything = object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+        }
+
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf<TrustManager>(trustEverything), SecureRandom())
+
+        newClientBuilder().sslContext(sslContext).build()
+    }
+
+    private fun newClientBuilder(): HttpClient.Builder = HttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT)
         .followRedirects(HttpClient.Redirect.NORMAL)
-        .build()
 
     suspend fun control(type: ControlType, intensity: Byte, duration: UShort, name: String) {
         logger.info("Sending $type with $intensity intensity for $duration ms [$name]")
@@ -62,7 +85,8 @@ object OpenShockApi {
         // fire-and-forget, so log it and give up rather than take the game down with us.
         val response = try {
             withContext(Dispatchers.IO) {
-                client.send(request, HttpResponse.BodyHandlers.ofString())
+                val http = if (config.ignoreCertificateErrors) insecureClient else client
+                http.send(request, HttpResponse.BodyHandlers.ofString())
             }
         } catch (e: HttpTimeoutException) {
             // Must precede IOException: HttpTimeoutException is a subclass of it.

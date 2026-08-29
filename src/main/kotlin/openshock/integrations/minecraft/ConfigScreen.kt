@@ -304,6 +304,20 @@ object ConfigScreen {
                                     { config.apiToken },
                                     { config.apiToken = it })
                                 .build()
+                        )
+                        .option(
+                            Option.createBuilder<Boolean>()
+                                .name(Component.literal("Ignore Certificate Errors"))
+                                .description(OptionDescription.of(Component.literal(
+                                    "Accept TLS certificates that are not signed by a trusted CA, e.g. a self-signed certificate on a self hosted backend.\n" +
+                                            "Only enable this if you know what you are doing - it disables a security check and lets anyone on your network read or modify your API token"
+                                )))
+                                .controller { TickBoxControllerBuilder.create(it) }
+                                .binding(
+                                    defaults.ignoreCertificateErrors,
+                                    { config.ignoreCertificateErrors },
+                                    { config.ignoreCertificateErrors = it })
+                                .build()
                         ).build()
                     )
 

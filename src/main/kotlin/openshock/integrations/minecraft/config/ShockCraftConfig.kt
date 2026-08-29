@@ -18,6 +18,9 @@ class ShockCraftConfig {
     @SerialEntry(comment = "API Token generated on the web")
     var apiToken: String = ""
 
+    @SerialEntry(comment = "Accept TLS certificates that are not signed by a trusted CA (self-signed). Only for self hosted instances, this disables a security check")
+    var ignoreCertificateErrors: Boolean = false
+
 
     // <--- Shockers --->
 
