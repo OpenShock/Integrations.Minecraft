@@ -86,6 +86,12 @@ object ShockCraft {
 
     @OptIn(DelicateCoroutinesApi::class)
     fun onClientTick() {
+        // Watched here because there is no equip event that fires on the wearer however the collar
+        // arrived - dragged in, right-clicked, dispensed, or put there by an operator.
+        //? if >=1.21.5 {
+        CollarConsent.tick()
+        //?}
+
         val currentScreen = McCompat.currentScreen
 
         // Cursed if logic to see if pause menu was opened, might not work with all mods

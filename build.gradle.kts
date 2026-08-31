@@ -19,6 +19,11 @@ plugins {
 // and consume mod dependencies straight off the compile classpath.
 val deobfuscated = stonecutter.eval(mod.minecraftVersion, ">=26.1")
 
+// The collar and remote need the Equippable component, which landed in 1.21.5. Older targets
+// build without them, so their recipes have to be left out too - a recipe naming an item that
+// does not exist is a parse error in the log on every world load.
+val hasItems = stonecutter.eval(mod.minecraftVersion, ">=1.21.5")
+
 // Stonecraft picks the Java version from the Minecraft version (21 for 1.21.x, 25 for 26.x).
 // Kotlin has to follow it rather than pick its own.
 val javaVersion = java.toolchain.languageVersion.get().asInt()
@@ -36,6 +41,15 @@ val yaclBundledLibraries = listOf(
 )
 
 repositories {
+    // Trinkets, Trinkets Updated and Curios are all published here and nowhere else in common.
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") }
+        filter { includeGroup("maven.modrinth") }
+    }
+    exclusiveContent {
+        forRepository { maven("https://maven.ladysnake.org/releases") }
+        filter { includeGroup("org.ladysnake.cardinal-components-api") }
+    }
     maven("https://maven.isxander.dev/releases")
     maven("https://maven.terraformersmc.com/releases")
     exclusiveContent {
@@ -53,12 +67,48 @@ kotlin {
     jvmToolchain(javaVersion)
 }
 
+tasks.processResources {
+    // Recipes and accessory-slot data both name the collar, and a datapack entry pointing at an
+    // item that does not exist is an error in the log on every world load.
+    if (!hasItems) exclude("data/**")
+}
+
 /** Loom-remapped on obfuscated versions, plain on deobfuscated ones. */
 fun DependencyHandler.modDependency(notation: String) =
     add(if (deobfuscated) "implementation" else "modImplementation", notation)
 
+/** The same, for APIs we compile against but never require at runtime. */
+fun DependencyHandler.modCompileDependency(notation: String) =
+    add(if (deobfuscated) "compileOnly" else "modCompileOnly", notation)
+
 dependencies {
     modDependency("dev.isxander:yet-another-config-lib:${mod.prop("yacl_version")}-${mod.loader}")
+
+    // The accessory slot the collar is worn in. Three different mods provide it across the range -
+    // see CollarSlot - and all three are compile-only: none is required at runtime, and without
+    // one the collar falls back to the head slot. Referenced by Modrinth version id rather than
+    // version number, because a '+' in a Gradle version string means "dynamic version".
+    if (hasItems) {
+        modCompileDependency(
+            when {
+                stonecutter.eval(mod.minecraftVersion, ">=26.1") ->
+                    "maven.modrinth:trinkets-updated:${mod.prop("slot_mod_version")}"
+                mod.isFabric -> "maven.modrinth:trinkets-canary:${mod.prop("slot_mod_version_fabric")}"
+                else -> "maven.modrinth:curios:${mod.prop("slot_mod_version_neoforge")}"
+            }
+        )
+
+        // Trinkets 3.x builds its component on Cardinal Components, so TrinketComponent's
+        // supertype has to be resolvable even though we never name it. Trinkets Updated 4.x
+        // dropped the dependency, so this is only needed below 26.1.
+        //
+        // Straight off Ladysnake's maven rather than Modrinth: the Modrinth artifact is a JarJar
+        // container whose modules Loom strips, so the classes never reach the compile classpath -
+        // the same trap the YACL libraries above work around.
+        if (mod.isFabric && !stonecutter.eval(mod.minecraftVersion, ">=26.1")) {
+            compileOnly("org.ladysnake.cardinal-components-api:cardinal-components-base:${mod.prop("cca_version")}")
+        }
+    }
 
     if (mod.isFabric) {
         modDependency("net.fabricmc:fabric-language-kotlin:${mod.prop("fabric_kotlin_version")}")

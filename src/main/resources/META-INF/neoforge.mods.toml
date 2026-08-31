@@ -26,21 +26,21 @@ modId = "minecraft"
 type = "required"
 versionRange = "${mcDepNeoforge}"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.${id}]]
 modId = "neoforge"
 type = "required"
 versionRange = "[${neoforgeVersion},)"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.${id}]]
 modId = "kotlinforforge"
 type = "required"
 versionRange = "[${kffVersion},)"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.${id}]]
 modId = "yet_another_config_lib_v3"

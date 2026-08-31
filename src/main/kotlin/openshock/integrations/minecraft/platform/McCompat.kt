@@ -38,6 +38,15 @@ object McCompat {
         *///?}
     }
 
+    /** Closing is `setScreen(null)`, which moved onto `Gui` in 26.2 along with the rest. */
+    fun closeScreen() {
+        //? if >=26.2 {
+        Minecraft.getInstance().gui.setScreen(null)
+        //?} else {
+        /*Minecraft.getInstance().setScreen(null)
+        *///?}
+    }
+
     /** `displayClientMessage(text, true)` was split out into `sendOverlayMessage(text)` in 26.1. */
     fun sendActionBar(text: Component) {
         val player = Minecraft.getInstance().player ?: return

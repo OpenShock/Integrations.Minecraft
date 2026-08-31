@@ -15,8 +15,14 @@
 	},
 	"license": "GPL-3.0",
 	"icon": "assets/${id}/icon.png",
-	"environment": "client",
+	"environment": "*",
 	"entrypoints": {
+		"main": [
+			{
+				"value": "${group}.platform.FabricCommonEntrypoint",
+				"adapter": "kotlin"
+			}
+		],
 		"client": [
 			{
 				"value": "${group}.platform.FabricEntrypoint",
@@ -36,7 +42,9 @@
 		"fabricloader": "*",
 		"fabric-api": "*",
 		"fabric-language-kotlin": ">=${fabricKotlinVersion}",
-		"yet_another_config_lib_v3": "*",
+		"yet_another_config_lib_v3": "*"
+	},
+	"recommends": {
 		"modmenu": "*"
 	},
 	"custom": {

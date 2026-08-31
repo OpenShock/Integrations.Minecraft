@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "R": "minecraft:redstone",
+    "I": "minecraft:iron_ingot"
+  },
+  "pattern": [
+    "R",
+    "I",
+    "I"
+  ],
+  "result": {
+    "id": "shockcraft:remote"
+  }
+}

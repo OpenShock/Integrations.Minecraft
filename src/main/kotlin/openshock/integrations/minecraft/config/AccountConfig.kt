@@ -33,6 +33,27 @@ class AccountConfig {
     @SerialEntry(comment = "Shockers to use")
     var shockers: List<String> = ArrayList()
 
+    // <--- Remote Control --->
+    //
+    // These live here rather than in ShockCraftConfig on purpose. They decide what someone else is
+    // allowed to do to you, so they must not be something a modpack or an exported instance can
+    // arrive with already set - the same reason the API token is kept out of there.
+
+    @SerialEntry(comment = "Let other players' remotes shock you. Off until you turn it on yourself")
+    var allowRemoteControl: Boolean = false
+
+    @SerialEntry(comment = "The strongest a remote may shock you, whatever strength it asks for")
+    var remoteMaxIntensity: Byte = 30
+
+    @SerialEntry(comment = "The longest a remote may shock you, whatever duration it asks for")
+    var remoteMaxDuration: UShort = 2000u
+
+    @SerialEntry(comment = "Shortest time between two remote shocks")
+    var remoteCooldown: UShort = 3000u
+
+    @SerialEntry(comment = "Collars you have agreed to wear, by id. Removing one disarms it until you agree again")
+    var armedCollars: List<String> = ArrayList()
+
     companion object {
 
         private val logger = LoggerFactory.getLogger("ShockCraft")

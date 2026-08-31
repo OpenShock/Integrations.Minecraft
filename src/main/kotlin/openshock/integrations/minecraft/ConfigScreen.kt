@@ -7,6 +7,9 @@ import dev.isxander.yacl3.api.controller.StringControllerBuilder
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder
 import dev.isxander.yacl3.api.utils.OptionUtils
 import dev.isxander.yacl3.gui.YACLScreen
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.api.Shocker
@@ -18,6 +21,7 @@ import openshock.integrations.minecraft.config.DamageFilterMode
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
+import openshock.integrations.minecraft.utils.shortCode
 
 /**
  * Builds the YACL settings screen. Loader-agnostic: Fabric reaches it through Mod Menu and
@@ -430,11 +434,15 @@ object ConfigScreen {
             )))
             .collapsed(true)
             .apply {
+                // Either branch, never both: YACL rejects an empty collection outright, so on the
+                // title screen - where there is no world and therefore no damage type registry -
+                // options(typeOptions) would throw before the label above could soften it.
                 if (available.isEmpty()) {
                     option(LabelOption.create(Component.literal("Join a world to list its damage types")))
+                } else {
+                    options(typeOptions)
                 }
             }
-            .options(typeOptions)
             .build()
 
         // A ListOption is its own group, so it goes into the category alongside the other two.
@@ -568,6 +576,8 @@ object ConfigScreen {
 
             .group(shockers.build())
 
+            .group(remoteControlGroup(accountDefaults, account))
+
             // The escape hatch for anything the picker cannot offer: a backend that is unreachable
             // right now, or a shocker the listing endpoints do not return.
             .group(ListOption.createBuilder<String>()
@@ -590,6 +600,134 @@ object ConfigScreen {
             )
 
             .build()
+    }
+
+    /**
+     * What other players' remotes are allowed to do to you.
+     *
+     * Nothing can reach [RemoteControl] yet - remotes come later - but the ceiling is testable
+     * today, which is the point of the button: press it and feel the strongest thing a remote
+     * could ever do, before handing one to anybody.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun remoteControlGroup(accountDefaults: AccountConfig, account: AccountConfig): OptionGroup {
+        val group = OptionGroup.createBuilder()
+            .name(Component.literal("Remote Control"))
+            .description(OptionDescription.of(Component.literal(
+                "Whether other players may shock you, and how hard they may do it.\n\n" +
+                        "Your API token never leaves this machine - a remote sends a request, and these limits " +
+                        "decide what it turns into. Nothing here is set by a modpack: like the token, it is stored " +
+                        "per user, so an instance someone hands you cannot arrive with this already switched on"
+            )))
+
+            .option(Option.createBuilder<Boolean>()
+                .name(Component.literal("Allow Remote Control"))
+                .description(OptionDescription.of(Component.literal(
+                    "Let remotes you have accepted shock you.\n\n" +
+                            "With this off, nothing another player does can reach your shockers"
+                )))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .binding(
+                    accountDefaults.allowRemoteControl,
+                    { account.allowRemoteControl },
+                    { account.allowRemoteControl = it })
+                .build()
+            )
+
+            .option(Option.createBuilder<Int>()
+                .name(Component.literal("Maximum Intensity"))
+                .description(OptionDescription.of(Component.literal("The strongest a remote may shock you, however hard it asks for")))
+                .controller { option ->
+                    IntegerSliderControllerBuilder.create(option)
+                        .range(1, 100)
+                        .step(1)
+                }
+                .binding(
+                    accountDefaults.remoteMaxIntensity.toInt(),
+                    { account.remoteMaxIntensity.toInt() },
+                    { account.remoteMaxIntensity = it.toByte() })
+                .build()
+            )
+
+            .option(Option.createBuilder<Int>()
+                .name(Component.literal("Maximum Duration"))
+                .description(OptionDescription.of(Component.literal("The longest a remote may shock you, however long it asks for")))
+                .controller { option ->
+                    IntegerSliderControllerBuilder.create(option)
+                        .range(300, 30_000)
+                        .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
+                }
+                .binding(
+                    accountDefaults.remoteMaxDuration.toInt(),
+                    { account.remoteMaxDuration.toInt() },
+                    { account.remoteMaxDuration = it.toUShort() })
+                .build()
+            )
+
+            .option(Option.createBuilder<Int>()
+                .name(Component.literal("Cooldown"))
+                .description(OptionDescription.of(Component.literal("Shortest time between two remote shocks, however often the remote is pressed")))
+                .controller { option ->
+                    IntegerSliderControllerBuilder.create(option)
+                        .range(300, 60_000)
+                        .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
+                }
+                .binding(
+                    accountDefaults.remoteCooldown.toInt(),
+                    { account.remoteCooldown.toInt() },
+                    { account.remoteCooldown = it.toUShort() })
+                .build()
+            )
+
+            .option(ButtonOption.createBuilder()
+                .name(Component.literal("Test the ceiling"))
+                .description(OptionDescription.of(Component.literal(
+                    "Shocks you once at exactly the limits above, so you know what the worst case feels like.\n\n" +
+                            "Saves the screen first, so it tests the numbers you can see"
+                )))
+                .available(account.shockers.isNotEmpty())
+                .action { screen, _ ->
+                    // Apply first: a slider that has only been dragged is still a pending value,
+                    // and testing a limit other than the one on screen would be worse than useless.
+                    OptionUtils.forEachOptions(screen.config) { it.applyValue() }
+                    screen.config.saveFunction().run()
+
+                    GlobalScope.launch { RemoteControl.test() }
+                }
+                .build()
+            )
+
+        // Collars you have agreed to wear, which is where permission actually lives now - the
+        // links themselves are on the item. Unticking one disarms it: the collar stays on your
+        // head and keeps working as a hat, and every remote pointed at it stops.
+        val armed = account.armedCollars
+        if (armed.isEmpty()) {
+            group.option(LabelOption.create(Component.literal("No collars armed")))
+        }
+
+        for (collarId in armed) {
+            group.option(
+                Option.createBuilder<Boolean>()
+                    .name(Component.literal("Collar ${shortCode(collarId)}"))
+                    .description(OptionDescription.of(Component.literal(
+                        "Untick to disarm this collar. Taking it off does the same thing.\n\n" +
+                            "Copies of a collar share its id, so this covers all of them.\n\n" + collarId
+                    )))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(
+                        // Default false, so YACL's reset disarms rather than re-arms. There is no
+                        // correct default for "may this collar shock me" - only a safe one.
+                        false,
+                        { collarId in account.armedCollars },
+                        { allowed ->
+                            val without = account.armedCollars.filterNot { it == collarId }
+                            account.armedCollars = if (allowed) without + collarId else without
+                        })
+                    .build()
+            )
+        }
+
+        return group.build()
     }
 
     /** What to say above the picker when it has nothing useful to show, or null when it has. */
