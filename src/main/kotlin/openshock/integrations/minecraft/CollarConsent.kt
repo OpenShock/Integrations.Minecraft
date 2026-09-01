@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
  * A collar can arrive already linked to somebody else's remotes - that is the point, you can hand
  * someone a working collar - but it also means whoever gave it to you chose who can press it. So
  * wearing one is a decision, and this is where it gets made, on the wearer's own machine, before
- * anything can fire. An operator can put a collar on your head; they cannot make it work.
+ * anything can fire. An operator can put a collar on you; they cannot make it work.
  *
  * Saying yes arms that collar by id. Copies of a collar share an id and so count as the same
  * collar, which is deliberate: they are the same collar, and agreeing to one is agreeing to the
@@ -28,7 +28,7 @@ object CollarConsent {
 
     private val logger = LoggerFactory.getLogger(ShockCraft.MOD_ID)
 
-    /** What the head slot held last tick, so equipping is noticed once rather than every tick. */
+    /** What the collar slot held last tick, so equipping is noticed once rather than every tick. */
     private var lastSeen: String? = null
 
     /** Suppresses a re-prompt while the screen from the last one is still up. */
@@ -69,6 +69,23 @@ object CollarConsent {
         // asking to be prompted about a hat.
         if (!account.allowRemoteControl) return
 
+        // Spelled out rather than summarised as "control you": a remote can be set to shock,
+        // vibrate or beep, those are switched separately, and someone deciding whether to put a
+        // collar on should be told which of them they are actually agreeing to.
+        val allowed = buildList {
+            if (account.allowRemoteShock) add("shock")
+            if (account.allowRemoteVibrate) add("vibrate")
+            if (account.allowRemoteSound) add("beep at")
+        }
+
+        // Every mode switched off, so wearing it does nothing at all until one is turned back on.
+        // Still worth asking: the collar is still a collar, and saying yes now means it starts
+        // working the moment that changes rather than silently at some later point.
+        val what =
+            if (allowed.isEmpty()) "nothing at all right now - you have every remote mode switched off"
+            else allowed.joinToString(", ").replaceFirstChar { it.uppercase() } +
+                " you, up to ${account.remoteMaxIntensity}% for ${account.remoteMaxDuration}ms, no more"
+
         asking = true
         McCompat.setScreen(
             ConfirmScreen(
@@ -76,8 +93,7 @@ object CollarConsent {
                 Component.literal("Wear collar ${shortCode(collarId)}?"),
                 Component.literal(
                     "This collar has remotes linked to it.\n\n" +
-                        "Wearing it lets whoever holds them shock you up to " +
-                        "${account.remoteMaxIntensity}% for ${account.remoteMaxDuration}ms, no more.\n" +
+                        "Wearing it lets whoever holds them do $what.\n" +
                         "Take it off at any time to stop."
                 ).withStyle(ChatFormatting.WHITE),
             )

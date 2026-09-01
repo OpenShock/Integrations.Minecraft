@@ -1,0 +1,28 @@
+{
+  "shock": {
+    "subtitle": "subtitles.shockcraft.shock",
+    "sounds": [
+      {
+        "name": "shockcraft:shock"
+      }
+    ]
+  },
+  "vibrate": {
+    "subtitle": "subtitles.shockcraft.vibrate",
+    "sounds": [
+      {
+        "name": "minecraft:entity.bee.loop",
+        "type": "event"
+      }
+    ]
+  },
+  "beep": {
+    "subtitle": "subtitles.shockcraft.beep",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.chime",
+        "type": "event"
+      }
+    ]
+  }
+}

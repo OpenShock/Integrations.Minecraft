@@ -25,6 +25,14 @@ import openshock.integrations.minecraft.ShockCraft
  */
 data class RemoteFirePayload(
     val collarId: String,
+    /**
+     * What the remote was set to, by [openshock.integrations.minecraft.api.RemoteMode] name.
+     *
+     * A request like the numbers beside it: the wearer has a separate switch per mode, so asking
+     * for a vibrate does not mean one happens. An unreadable name resolves to Shock, which is what
+     * every remote asked for before this field existed.
+     */
+    val mode: String,
     val intensity: Int,
     val duration: Int,
 ) : CustomPacketPayload {
@@ -35,15 +43,23 @@ data class RemoteFirePayload(
         val TYPE: CustomPacketPayload.Type<RemoteFirePayload> =
             CustomPacketPayload.Type(McCompat.identifier(ShockCraft.MOD_ID, "remote_fire"))
 
-        // Written out by hand rather than through StreamCodec.composite: three fields is not worth
+        // Written out by hand rather than through StreamCodec.composite: four fields is not worth
         // the generic gymnastics, and this way the wire format is readable at a glance.
         val CODEC: StreamCodec<RegistryFriendlyByteBuf, RemoteFirePayload> = StreamCodec.of(
             { buffer, payload ->
                 buffer.writeUtf(payload.collarId)
+                buffer.writeUtf(payload.mode)
                 buffer.writeVarInt(payload.intensity)
                 buffer.writeVarInt(payload.duration)
             },
-            { buffer -> RemoteFirePayload(buffer.readUtf(), buffer.readVarInt(), buffer.readVarInt()) },
+            { buffer ->
+                RemoteFirePayload(
+                    buffer.readUtf(),
+                    buffer.readUtf(),
+                    buffer.readVarInt(),
+                    buffer.readVarInt(),
+                )
+            },
         )
     }
 }

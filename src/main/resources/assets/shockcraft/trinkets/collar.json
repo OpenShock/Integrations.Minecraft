@@ -1,0 +1,13 @@
+{
+  "target": [
+    "shockcraft:collar"
+  ],
+  "render": [
+    {
+      "type": "model",
+      "model": "shockcraft:item/collar_worn",
+      "model_part": "right_leg",
+      "offset": [0, 0.5, 0]
+    }
+  ]
+}

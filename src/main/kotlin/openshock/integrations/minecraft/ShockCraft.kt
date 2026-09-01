@@ -90,6 +90,10 @@ object ShockCraft {
         // arrived - dragged in, right-clicked, dispensed, or put there by an operator.
         //? if >=1.21.5 {
         CollarConsent.tick()
+
+        // Only to send what sneak-and-scroll dialled in, once it settles. The scrolling itself
+        // arrives from MouseHandlerMixin, which is nowhere near a tick.
+        RemoteTuning.tick()
         //?}
 
         val currentScreen = McCompat.currentScreen

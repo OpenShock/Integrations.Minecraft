@@ -6,6 +6,8 @@ import net.minecraft.server.level.ServerPlayer
 //? if >=1.21 {
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
+import openshock.integrations.minecraft.ShockEffects
+import openshock.integrations.minecraft.api.RemoteMode
 
 /**
  * The server half of the channel: register the packets, ask whether a player can hear them, send
@@ -24,21 +26,48 @@ object Net {
     const val SUPPORTED: Boolean = true
 
     fun init() {
-        // Fabric API 6 (26.1) renamed playS2C to clientboundPlay.
+        // Fabric API 6 (26.1) renamed playS2C/playC2S to clientboundPlay/serverboundPlay.
         //? if >=26.1 {
         val toClient = PayloadTypeRegistry.clientboundPlay()
+        val toServer = PayloadTypeRegistry.serverboundPlay()
         //?} else {
         /*val toClient = PayloadTypeRegistry.playS2C()
+        val toServer = PayloadTypeRegistry.playC2S()
         *///?}
 
         toClient.register(RemoteFirePayload.TYPE, RemoteFirePayload.CODEC)
+        toServer.register(ShockedPayload.TYPE, ShockedPayload.CODEC)
+
+        // Runs on the server thread, which is where the particles have to be spawned from anyway.
+        // context.player() is who the connection belongs to, not anything the packet claimed, so
+        // there is no way to draw sparks on somebody else.
+        ServerPlayNetworking.registerGlobalReceiver(ShockedPayload.TYPE) { payload, context ->
+            ShockEffects.onShocked(
+                context.player(),
+                RemoteMode.byName(payload.mode),
+                payload.intensity,
+                payload.duration,
+                payload.particles,
+                payload.sound,
+            )
+        }
+
+        // Remotes only exist where the Equippable component does, and with no remote there is
+        // nothing to configure.
+        //? if >=1.21.5 {
+        toServer.register(RemoteConfigPayload.TYPE, RemoteConfigPayload.CODEC)
+
+        ServerPlayNetworking.registerGlobalReceiver(RemoteConfigPayload.TYPE) { payload, context ->
+            RemoteConfig.receive(context.player(), payload)
+        }
+        //?}
     }
 
     fun canReach(player: ServerPlayer): Boolean =
         ServerPlayNetworking.canSend(player, RemoteFirePayload.TYPE)
 
-    fun fire(player: ServerPlayer, collarId: String, intensity: Int, duration: Int) {
-        ServerPlayNetworking.send(player, RemoteFirePayload(collarId, intensity, duration))
+    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {
+        ServerPlayNetworking.send(player, RemoteFirePayload(collarId, mode, intensity, duration))
     }
 }
 //?} else {
@@ -50,7 +79,7 @@ object Net {
     const val SUPPORTED: Boolean = false
     fun init() {}
     fun canReach(player: ServerPlayer): Boolean = false
-    fun fire(player: ServerPlayer, collarId: String, intensity: Int, duration: Int) {}
+    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {}
 }
 *///?}
 //?} elif neoforge {
@@ -58,6 +87,8 @@ object Net {
 import net.neoforged.fml.ModLoadingContext
 import net.neoforged.neoforge.network.PacketDistributor
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent
+import openshock.integrations.minecraft.ShockEffects
+import openshock.integrations.minecraft.api.RemoteMode
 
 /**
  * The server half of the channel. Same jobs as the Fabric version, done through a different set of
@@ -87,14 +118,37 @@ object Net {
                 .playToClient(RemoteFirePayload.TYPE, RemoteFirePayload.CODEC) { payload, _ ->
                     NetClient.receiveFire(payload)
                 }
+                // Handlers run on the main thread unless the registrar is told otherwise, which is
+                // where the particles have to be spawned from anyway. context.player() is who the
+                // connection belongs to, not anything the packet claimed, so there is no way to
+                // draw sparks on somebody else - and on this side it is always a ServerPlayer.
+                .playToServer(ShockedPayload.TYPE, ShockedPayload.CODEC) { payload, context ->
+                    val player = context.player() as? ServerPlayer ?: return@playToServer
+                    ShockEffects.onShocked(
+                        player,
+                        RemoteMode.byName(payload.mode),
+                        payload.intensity,
+                        payload.duration,
+                        payload.particles,
+                        payload.sound,
+                    )
+                }
+                // Remotes only exist where the Equippable component does, and with no remote
+                // there is nothing to configure.
+                //? if >=1.21.5 {
+                .playToServer(RemoteConfigPayload.TYPE, RemoteConfigPayload.CODEC) { payload, context ->
+                    val player = context.player() as? ServerPlayer ?: return@playToServer
+                    RemoteConfig.receive(player, payload)
+                }
+                //?}
         }
     }
 
     fun canReach(player: ServerPlayer): Boolean =
         player.connection.hasChannel(RemoteFirePayload.TYPE)
 
-    fun fire(player: ServerPlayer, collarId: String, intensity: Int, duration: Int) {
-        PacketDistributor.sendToPlayer(player, RemoteFirePayload(collarId, intensity, duration))
+    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {
+        PacketDistributor.sendToPlayer(player, RemoteFirePayload(collarId, mode, intensity, duration))
     }
 }
 //?} else {
@@ -105,7 +159,7 @@ object Net {
     const val SUPPORTED: Boolean = false
     fun init() {}
     fun canReach(player: ServerPlayer): Boolean = false
-    fun fire(player: ServerPlayer, collarId: String, intensity: Int, duration: Int) {}
+    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {}
 }
 *///?}
 *///?}

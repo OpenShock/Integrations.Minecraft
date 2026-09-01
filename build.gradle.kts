@@ -81,6 +81,13 @@ fun DependencyHandler.modDependency(notation: String) =
 fun DependencyHandler.modCompileDependency(notation: String) =
     add(if (deobfuscated) "compileOnly" else "modCompileOnly", notation)
 
+/**
+ * In the dev run only. `localRuntime` is never published, so nothing added through here becomes a
+ * dependency of the released mod - it just means `runClient` starts with the mod already there.
+ */
+fun DependencyHandler.modDevRuntimeDependency(notation: String) =
+    add(if (deobfuscated) "localRuntime" else "modLocalRuntime", notation)
+
 dependencies {
     modDependency("dev.isxander:yet-another-config-lib:${mod.prop("yacl_version")}-${mod.loader}")
 
@@ -89,14 +96,21 @@ dependencies {
     // one the collar falls back to the head slot. Referenced by Modrinth version id rather than
     // version number, because a '+' in a Gradle version string means "dynamic version".
     if (hasItems) {
-        modCompileDependency(
-            when {
-                stonecutter.eval(mod.minecraftVersion, ">=26.1") ->
-                    "maven.modrinth:trinkets-updated:${mod.prop("slot_mod_version")}"
-                mod.isFabric -> "maven.modrinth:trinkets-canary:${mod.prop("slot_mod_version_fabric")}"
-                else -> "maven.modrinth:curios:${mod.prop("slot_mod_version_neoforge")}"
-            }
-        )
+        val slotMod = when {
+            stonecutter.eval(mod.minecraftVersion, ">=26.1") ->
+                "maven.modrinth:trinkets-updated:${mod.prop("slot_mod_version")}"
+            mod.isFabric -> "maven.modrinth:trinkets-canary:${mod.prop("slot_mod_version_fabric")}"
+            else -> "maven.modrinth:curios:${mod.prop("slot_mod_version_neoforge")}"
+        }
+
+        modCompileDependency(slotMod)
+
+        // And in the dev run, because the half of the collar that needs an accessory mod is the
+        // half worth looking at: the worn model from assets/shockcraft/trinkets/collar.json is
+        // drawn by this and nothing else, so without it `runClient` only ever shows the flat
+        // leggings-slot texture. Still not required of anyone installing the mod - localRuntime
+        // is not published, and CollarSlot falls back to the leggings slot when it is absent.
+        modDevRuntimeDependency(slotMod)
 
         // Trinkets 3.x builds its component on Cardinal Components, so TrinketComponent's
         // supertype has to be resolvable even though we never name it. Trinkets Updated 4.x
@@ -107,6 +121,17 @@ dependencies {
         // the same trap the YACL libraries above work around.
         if (mod.isFabric && !stonecutter.eval(mod.minecraftVersion, ">=26.1")) {
             compileOnly("org.ladysnake.cardinal-components-api:cardinal-components-base:${mod.prop("cca_version")}")
+
+            // And again for the dev run, for a second reason. Trinkets 3.x nests these two in its
+            // own jar, but remapping strips nested jars outright - the remapped artifact declares
+            // none, where the one on Modrinth declares both - so a dev client would load Trinkets
+            // straight into a missing-dependency failure unless they are named here.
+            //
+            // Only below 26.1. Trinkets Updated 4.x dropped Cardinal Components entirely, and its
+            // targets are deobfuscated, so nothing remaps and what it does nest survives.
+            for (module in listOf("cardinal-components-base", "cardinal-components-entity")) {
+                modDevRuntimeDependency("org.ladysnake.cardinal-components-api:$module:${mod.prop("cca_version")}")
+            }
         }
     }
 

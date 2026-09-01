@@ -2,6 +2,7 @@ package openshock.integrations.minecraft
 
 import openshock.integrations.minecraft.api.ControlType
 import openshock.integrations.minecraft.api.OpenShockApi
+import openshock.integrations.minecraft.api.RemoteMode
 import openshock.integrations.minecraft.config.AccountConfig
 import openshock.integrations.minecraft.utils.shortCode
 import org.slf4j.LoggerFactory
@@ -41,21 +42,32 @@ object RemoteControl {
      * someone's settings - or to find out whether they are running the mod at all. Over the wire
      * there is one answer to everything except success, which is nothing.
      */
-    enum class Outcome { Fired, SwitchedOff, NotArmed, OnCooldown }
+    enum class Outcome { Fired, SwitchedOff, ModeNotAllowed, NotArmed, OnCooldown }
 
     private var lastFired: Long = -1
 
     /**
      * A remote someone else pressed.
      *
-     * [intensity] and [duration] are what the remote asked for, never what it gets: the caps clamp
-     * them on the way through. That is what makes a collar safe to accept - the answer to "how
-     * hard can they get me" is always a number this player set, not one that came with the item.
+     * [mode], [intensity] and [duration] are what the remote asked for, never what it gets. The
+     * caps clamp the numbers on the way through and the per-mode switches can refuse the mode
+     * outright, so the answer to "how hard can they get me" is always something this player set
+     * rather than something that came with the item.
+     *
+     * The mode is checked *before* the cooldown, so being refused a shock does not eat the window
+     * a vibrate would have used - and so that turning shocks off leaves a vibrate remote working
+     * at its own pace rather than at the pace of whatever else is being pressed at you.
      */
-    suspend fun onRemoteFired(collarId: String, intensity: Byte, duration: UShort): Outcome {
+    suspend fun onRemoteFired(
+        collarId: String,
+        mode: RemoteMode,
+        intensity: Byte,
+        duration: UShort,
+    ): Outcome {
         val account = AccountConfig.HANDLER.instance()
 
         if (!account.allowRemoteControl) return refused(Outcome.SwitchedOff, collarId)
+        if (!allows(mode)) return refused(Outcome.ModeNotAllowed, collarId)
         if (!wearingArmed(collarId)) return refused(Outcome.NotArmed, collarId)
 
         // Taken before the shock is sent, so a burst of presses cannot queue up behind one call.
@@ -64,7 +76,7 @@ object RemoteControl {
         lastFired = now
 
         OpenShockApi.control(
-            ControlType.Shock,
+            mode.control,
             // coerceAtMost then coerceAtLeast rather than coerceIn: a hand-edited config with a
             // cap below the floor would make coerceIn throw, and this must never be the thing
             // that breaks.
@@ -74,6 +86,23 @@ object RemoteControl {
         )
 
         return Outcome.Fired
+    }
+
+    /**
+     * Whether this player accepts this kind of press at all.
+     *
+     * The caps are one number for all three modes on purpose: they bound how much shocker runs,
+     * and that means the same thing whether it comes out as a jolt, a buzz or a beep. What differs
+     * between modes is only whether you want them, which is what these switches are.
+     */
+    private fun allows(mode: RemoteMode): Boolean {
+        val account = AccountConfig.HANDLER.instance()
+
+        return when (mode) {
+            RemoteMode.Shock -> account.allowRemoteShock
+            RemoteMode.Vibrate -> account.allowRemoteVibrate
+            RemoteMode.Sound -> account.allowRemoteSound
+        }
     }
 
     /**

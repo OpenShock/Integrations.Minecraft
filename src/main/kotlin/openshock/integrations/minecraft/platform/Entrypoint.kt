@@ -11,6 +11,14 @@ import net.minecraft.client.gui.screens.Screen
 import org.slf4j.LoggerFactory
 import openshock.integrations.minecraft.ConfigScreen
 import openshock.integrations.minecraft.ShockCraft
+//? if >=1.21 {
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import openshock.integrations.minecraft.ShockEffects
+//?}
+//? if >=1.21.5 {
+import openshock.integrations.minecraft.RemoteScreen
+import openshock.integrations.minecraft.content.RemoteScreens
+//?}
 
 /**
  * Runs on both sides, and on a dedicated server it is the only thing that runs at all.
@@ -34,6 +42,14 @@ class FabricCommonEntrypoint : ModInitializer {
 
         // Items too: a stack cannot cross between sides unless both know what it is.
         Content.init()
+
+        // Drives the sparks around anyone being shocked. Left out below 1.21, where there is no
+        // channel for a client to report a shock on and so nothing that could ever be crackling.
+        //? if >=1.21 {
+        ServerTickEvents.END_SERVER_TICK.register(
+            ServerTickEvents.EndTick { server -> ShockEffects.tick(server) }
+        )
+        //?}
     }
 }
 
@@ -42,6 +58,12 @@ class FabricEntrypoint : ClientModInitializer {
         ShockCraft.init()
         NetClient.init()
         Content.initClient()
+
+        // Handed in rather than reached for: RemoteItem runs on a dedicated server too, so it
+        // must never name the screen it opens. See RemoteScreens.
+        //? if >=1.21.5 {
+        RemoteScreens.opener = { stack, hand -> McCompat.setScreen(RemoteScreen(stack, hand)) }
+        //?}
 
         ClientTickEvents.END_CLIENT_TICK.register(
             ClientTickEvents.EndTick { ShockCraft.onClientTick() }
@@ -70,6 +92,8 @@ import net.neoforged.neoforge.common.NeoForge
 //? if >=1.21 {
 import net.neoforged.neoforge.client.event.ClientTickEvent
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory
+import net.neoforged.neoforge.event.tick.ServerTickEvent
+import openshock.integrations.minecraft.ShockEffects
 //?} else {
 /*import net.neoforged.neoforge.client.ConfigScreenHandler
 import net.neoforged.neoforge.event.TickEvent
@@ -77,6 +101,10 @@ import net.neoforged.neoforge.event.TickEvent
 import openshock.integrations.minecraft.ConfigScreen
 import openshock.integrations.minecraft.ShockCraft
 import org.slf4j.LoggerFactory
+//? if >=1.21.5 {
+import openshock.integrations.minecraft.RemoteScreen
+import openshock.integrations.minecraft.content.RemoteScreens
+//?}
 
 // Kotlin for Forge ("kotlinforforge" modLoader in neoforge.mods.toml) expects an object
 // declaration. The mod loads on dedicated servers now, so @Mod no longer restricts itself to
@@ -106,6 +134,14 @@ object NeoForgeEntrypoint {
         // Items too: a stack cannot cross between sides unless both know what it is.
         Content.init()
 
+        // Drives the sparks around anyone being shocked. Left out below 1.21, where there is no
+        // channel for a client to report a shock on and so nothing that could ever be crackling.
+        //? if >=1.21 {
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post::class.java) { event ->
+            ShockEffects.tick(event.server)
+        }
+        //?}
+
         if (onClient) {
             ClientBootstrap.run()
         }
@@ -117,6 +153,12 @@ private object ClientBootstrap {
         ShockCraft.init()
         NetClient.init()
         Content.initClient()
+
+        // Handed in rather than reached for: RemoteItem runs on a dedicated server too, so it
+        // must never name the screen it opens. See RemoteScreens.
+        //? if >=1.21.5 {
+        RemoteScreens.opener = { stack, hand -> McCompat.setScreen(RemoteScreen(stack, hand)) }
+        //?}
 
         // 1.21 replaced ConfigScreenHandler.ConfigScreenFactory with IConfigScreenFactory.
         //? if >=1.21 {

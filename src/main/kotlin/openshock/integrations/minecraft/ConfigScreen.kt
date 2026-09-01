@@ -634,6 +634,43 @@ object ConfigScreen {
                 .build()
             )
 
+            .option(Option.createBuilder<Boolean>()
+                .name(Component.literal("Allow Shock"))
+                .description(OptionDescription.of(Component.literal(
+                    "Let remotes set to Shock reach you.\n\n" +
+                            "A remote can be set to shock, buzz or beep, and those are not the same thing to " +
+                            "agree to - turn off the ones you do not want"
+                )))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .binding(
+                    accountDefaults.allowRemoteShock,
+                    { account.allowRemoteShock },
+                    { account.allowRemoteShock = it })
+                .build()
+            )
+
+            .option(Option.createBuilder<Boolean>()
+                .name(Component.literal("Allow Vibrate"))
+                .description(OptionDescription.of(Component.literal("Let remotes set to Vibrate buzz you")))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .binding(
+                    accountDefaults.allowRemoteVibrate,
+                    { account.allowRemoteVibrate },
+                    { account.allowRemoteVibrate = it })
+                .build()
+            )
+
+            .option(Option.createBuilder<Boolean>()
+                .name(Component.literal("Allow Sound"))
+                .description(OptionDescription.of(Component.literal("Let remotes set to Sound beep at you")))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .binding(
+                    accountDefaults.allowRemoteSound,
+                    { account.allowRemoteSound },
+                    { account.allowRemoteSound = it })
+                .build()
+            )
+
             .option(Option.createBuilder<Int>()
                 .name(Component.literal("Maximum Intensity"))
                 .description(OptionDescription.of(Component.literal("The strongest a remote may shock you, however hard it asks for")))
@@ -676,6 +713,38 @@ object ConfigScreen {
                     accountDefaults.remoteCooldown.toInt(),
                     { account.remoteCooldown.toInt() },
                     { account.remoteCooldown = it.toUShort() })
+                .build()
+            )
+
+            // What the room gets when a shock lands. These sit here rather than with the other
+            // display settings because they are the same kind of choice as the ones above: the
+            // packet that draws them is the only reason anyone else learns a shock got through,
+            // so switching both off puts that back to being between you and your own client.
+            .option(Option.createBuilder<Boolean>()
+                .name(Component.literal("Show Shock Particles"))
+                .description(OptionDescription.of(Component.literal(
+                    "Draw sparks around you when a shock lands, for everyone nearby to see.\n\n" +
+                            "With this and the crackle both off, nothing is sent to the server at all and a " +
+                            "shock is something only you know about"
+                )))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .binding(
+                    accountDefaults.showEffectParticles,
+                    { account.showEffectParticles },
+                    { account.showEffectParticles = it })
+                .build()
+            )
+
+            .option(Option.createBuilder<Boolean>()
+                .name(Component.literal("Play Shock Crackle"))
+                .description(OptionDescription.of(Component.literal(
+                    "Play a crackle when a shock lands, for everyone nearby to hear"
+                )))
+                .controller { TickBoxControllerBuilder.create(it) }
+                .binding(
+                    accountDefaults.showEffectSounds,
+                    { account.showEffectSounds },
+                    { account.showEffectSounds = it })
                 .build()
             )
 

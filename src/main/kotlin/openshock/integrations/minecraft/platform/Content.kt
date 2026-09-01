@@ -35,6 +35,12 @@ object Content {
         for ((key, item) in ModContent.itemEntries) {
             Registry.register(BuiltInRegistries.ITEM, key, item)
         }
+
+        // On both sides: the server picks which sound to play and names it by registry id, so a
+        // client that has not registered it has nothing to resolve and hears nothing.
+        for ((key, sound) in ModContent.soundEntries) {
+            Registry.register(BuiltInRegistries.SOUND_EVENT, key, sound)
+        }
     }
 
     /**
@@ -95,6 +101,12 @@ object Content {
 
             event.register(Registries.ITEM) { helper ->
                 for ((key, item) in ModContent.itemEntries) helper.register(key, item)
+            }
+
+            // On both sides: the server picks which sound to play and names it by registry id, so
+            // a client that has not registered it has nothing to resolve and hears nothing.
+            event.register(Registries.SOUND_EVENT) { helper ->
+                for ((key, sound) in ModContent.soundEntries) helper.register(key, sound)
             }
         }
     }

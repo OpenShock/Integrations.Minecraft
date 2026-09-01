@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.config.AccountConfig
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
+import openshock.integrations.minecraft.platform.NetClient
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.net.URI
@@ -102,6 +103,25 @@ object OpenShockApi {
         }
 
         logger.debug(response.body())
+
+        // Only once the backend has taken it. This is the single funnel every control in the mod
+        // goes through, so damage, death, level-ups, chat phrases and remotes are all covered
+        // here - and each mode is dressed differently at the far end, so a jolt, a buzz and a
+        // beep do not look alike to the room. Stop maps to no mode and is not drawn at all.
+        //
+        // Both effects off means the packet is never sent, so nobody is told anything landed -
+        // which is the only way to keep that private, since the packet is the thing that tells
+        // them. See ShockedPayload.
+        val effect = RemoteMode.fromControl(type)
+        if (effect != null && (account.showEffectParticles || account.showEffectSounds)) {
+            NetClient.sendShocked(
+                effect,
+                intensity,
+                duration,
+                account.showEffectParticles,
+                account.showEffectSounds,
+            )
+        }
 
         val inSeconds = (duration.toFloat() / 1000f)
 

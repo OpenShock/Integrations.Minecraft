@@ -36,6 +36,9 @@
 			}
 		]
 	},
+	"mixins": [
+		"shockcraft.mixins.json"
+	],
 	"depends": {
 		"minecraft": "${mcDepFabric}",
 		"java": ">=${javaVersion}",

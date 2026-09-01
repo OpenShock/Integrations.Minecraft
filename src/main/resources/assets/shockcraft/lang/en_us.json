@@ -1,4 +1,7 @@
 {
   "item.shockcraft.collar": "Shock Collar",
-  "item.shockcraft.remote": "Shock Remote"
+  "item.shockcraft.remote": "Shock Remote",
+  "subtitles.shockcraft.shock": "Collar crackles",
+  "subtitles.shockcraft.vibrate": "Collar buzzes",
+  "subtitles.shockcraft.beep": "Collar beeps"
 }

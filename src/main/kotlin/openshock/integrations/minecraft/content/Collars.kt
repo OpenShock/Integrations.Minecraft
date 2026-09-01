@@ -11,13 +11,13 @@ import openshock.integrations.minecraft.platform.CollarSlot
 import java.util.UUID
 
 /**
- * Reading and writing collars, whether they are on a head or in a hand.
+ * Reading and writing collars, whether they are on a leg or in a hand.
  *
  * The stack-level half is what lets a collar be wired up before anyone wears it - linked on a
  * bench and handed over ready to work. The worn half finds who a press should reach.
  *
  * There is deliberately no registry of collars anywhere. A collar is worn or it is not, and that
- * is a fact about a player's head slot that can be read whenever it is needed - so there is no
+ * is a fact about a player's slots that can be read whenever it is needed - so there is no
  * bookkeeping to go stale when someone dies, logs out, or hands the thing over. It is also why
  * taking the collar off is an honest off switch: nothing to update, nothing left pointing at you.
  */
@@ -53,7 +53,7 @@ object Collars {
         return id
     }
 
-    // <--- The collar on a head --->
+    // <--- The collar on a leg --->
     //
     // Read-only, and there is nothing on a worn collar that anyone could change anyway. Who a
     // press reaches is read off what people are actually wearing, never trusted from a client.
@@ -61,13 +61,13 @@ object Collars {
     /**
      * Where a worn collar actually is.
      *
-     * The accessory slot wins when there is one, and the head slot is the fallback for builds and
-     * setups without an accessory mod. The collar stays head-equippable either way, so nobody is
-     * forced to install anything to use one - they just give up a helmet.
+     * The accessory slot wins when there is one, and the leggings slot is the fallback for builds
+     * and setups without an accessory mod. The collar stays leg-equippable either way, so nobody
+     * is forced to install anything to use one - they just give up a pair of leggings.
      */
     fun wornStack(entity: LivingEntity): ItemStack {
         CollarSlot.wornStack(entity)?.let { if (it.`is`(ModContent.COLLAR)) return it }
-        return entity.getItemBySlot(EquipmentSlot.HEAD)
+        return entity.getItemBySlot(EquipmentSlot.LEGS)
     }
 
     fun wornId(entity: LivingEntity): String? = idOf(wornStack(entity))
@@ -78,7 +78,7 @@ object Collars {
      * Plural on purpose. A collar id belongs to the item, so copies of a collar share one - wire a
      * collar up, copy it, hand it round, and a single press reaches the whole group. Nothing here
      * decides whether any of them is actually shocked: each of their clients answers that alone,
-     * against the collar on its own head and settings only that person can change.
+     * against the collar its own player is wearing and settings only that person can change.
      *
      * A linear scan over the player list, run once per remote press. That is cheap next to what a
      * press actually costs, which is an HTTP round trip on somebody's client.

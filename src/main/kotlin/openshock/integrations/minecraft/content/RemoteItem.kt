@@ -34,13 +34,6 @@ import java.util.function.Consumer
 class RemoteItem(properties: Properties) : Item(properties) {
 
     /**
-     * What a press asks for. The wearer's caps clamp it, so this is a request and not a setting -
-     * the honest answer to "how hard can this get me" is always a number the wearer chose.
-     */
-    private val askIntensity = 25
-    private val askDuration = 1000
-
-    /**
      * Links a blank remote to a collar held in the player's other hand. The only way to link.
      *
      * Nobody has to be wearing it and nobody is asked, which is the point - a collar can be
@@ -79,18 +72,32 @@ class RemoteItem(properties: Properties) : Item(properties) {
         stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true)
     }
 
-    /** Right-click the air: bind it if it is blank, press it if it is not. */
+    /**
+     * Right-click the air: bind it if it is blank, press it if it is not. Sneak to set it instead.
+     */
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResult {
-        if (level.isClientSide) return InteractionResult.SUCCESS
-
         val stack = player.getItemInHand(hand)
+        val collarId = stack.get(ModContent.COLLAR_ID)
+
+        // Sneaking on a bound remote opens its settings rather than pressing it, so the gesture
+        // that changes what a remote does can never be the gesture that fires it.
+        //
+        // Handled on the client and only there: the screen lives on that side, and the server's
+        // half of this interaction is the packet the screen sends when it closes, not this call.
+        // Binding is deliberately left out of the check - a blank remote has nothing to set, so
+        // sneaking with one still links it rather than doing nothing.
+        if (player.isShiftKeyDown && collarId != null) {
+            if (level.isClientSide) RemoteScreens.open(stack, hand)
+            return InteractionResult.SUCCESS
+        }
+
+        if (level.isClientSide) return InteractionResult.SUCCESS
 
         // A blank remote in one hand and a collar in the other is the bench gesture: link them
         // with nobody wearing anything, so a collar can be prepared and then handed over working.
         // Safe to do without asking anyone, because agreeing to a collar happens when it goes on
         // a head, not when a remote is bound to it.
-        val collarId = stack.get(ModContent.COLLAR_ID)
-            ?: return bindToCollarInOtherHand(stack, player, hand)
+        if (collarId == null) return bindToCollarInOtherHand(stack, player, hand)
 
         // Through Level, whose getServer() Kotlin can see as a property - ServerPlayer and
         // ServerLevel both have a private `server` field that hides theirs.
@@ -98,16 +105,64 @@ class RemoteItem(properties: Properties) : Item(properties) {
 
         if (!Net.SUPPORTED) return InteractionResult.SUCCESS
 
+        // Read off the item at the moment of the press, so two remotes bound to the same collar
+        // can ask for different things and handing one over hands over what it is set to.
+        val mode = RemoteSettings.mode(stack)
+        val intensity = RemoteSettings.intensity(stack)
+        val duration = RemoteSettings.duration(stack)
+
         // Everyone wearing a collar with this id, which may be several - copies of a collar share
         // its id, so a press reaches the whole group at once.
         for (wearer in Collars.findWearers(server, collarId)) {
             if (!Net.canReach(wearer)) continue
-            Net.fire(wearer, collarId, askIntensity, askDuration)
+            Net.fire(wearer, collarId, mode.name, intensity, duration)
         }
 
         // Always the same answer, however many that was - including none. A remote that behaved
         // differently when nobody was wearing the collar would be a way to check up on people.
         return InteractionResult.SUCCESS
+    }
+
+    /**
+     * What this remote is bound to and what it will ask for.
+     *
+     * Only ever what the item itself says. It cannot show whether a press would land, because
+     * that depends on the wearer's switches and caps, and nothing on this side is ever told.
+     */
+    override fun appendHoverText(
+        stack: ItemStack,
+        context: TooltipContext,
+        display: TooltipDisplay,
+        adder: Consumer<Component>,
+        flag: TooltipFlag,
+    ) {
+        val id = stack.get(ModContent.COLLAR_ID)
+
+        if (id == null) {
+            adder.accept(
+                Component.literal("Unbound - hold a collar in your other hand to link it")
+                    .withStyle(ChatFormatting.DARK_GRAY)
+            )
+            return
+        }
+
+        adder.accept(
+            Component.literal("Presses collar ${ModContent.shortCode(id)}")
+                .withStyle(ChatFormatting.GRAY)
+        )
+
+        adder.accept(
+            Component.literal(
+                "${RemoteSettings.mode(stack).label} · " +
+                    "${RemoteSettings.intensity(stack)}% · " +
+                    RemoteSettings.durationLabel(RemoteSettings.duration(stack))
+            ).withStyle(ChatFormatting.DARK_GRAY)
+        )
+
+        adder.accept(
+            Component.literal("Sneak and use to change · sneak and scroll for intensity")
+                .withStyle(ChatFormatting.DARK_GRAY)
+        )
     }
 }
 //?}

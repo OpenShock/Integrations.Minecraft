@@ -39,8 +39,24 @@ class AccountConfig {
     // allowed to do to you, so they must not be something a modpack or an exported instance can
     // arrive with already set - the same reason the API token is kept out of there.
 
-    @SerialEntry(comment = "Let other players' remotes shock you. Off until you turn it on yourself")
+    @SerialEntry(comment = "Let other players' remotes reach you at all. Off until you turn it on yourself")
     var allowRemoteControl: Boolean = false
+
+    // One switch per mode, all under allowRemoteControl. A remote can be set to shock, vibrate or
+    // beep, and those are not the same thing to agree to - accepting a buzz from your friends
+    // should not be how you end up accepting a shock from them.
+    //
+    // All three default on so that turning the master switch on behaves exactly as it did when it
+    // was the only switch there was. Turning that master off still stops everything.
+
+    @SerialEntry(comment = "Let remotes set to Shock shock you")
+    var allowRemoteShock: Boolean = true
+
+    @SerialEntry(comment = "Let remotes set to Vibrate buzz you")
+    var allowRemoteVibrate: Boolean = true
+
+    @SerialEntry(comment = "Let remotes set to Sound beep at you")
+    var allowRemoteSound: Boolean = true
 
     @SerialEntry(comment = "The strongest a remote may shock you, whatever strength it asks for")
     var remoteMaxIntensity: Byte = 30
@@ -53,6 +69,21 @@ class AccountConfig {
 
     @SerialEntry(comment = "Collars you have agreed to wear, by id. Removing one disarms it until you agree again")
     var armedCollars: List<String> = ArrayList()
+
+    // <--- Being shocked, as seen by everyone else --->
+    //
+    // These decide what the room learns when a shock lands on you, which is why they sit here
+    // beside the caps rather than in the per-instance config: it is the same kind of choice, and
+    // the same reason applies - a modpack must not be able to arrive with it already decided.
+    //
+    // With both off, nothing is sent upwards at all, and a shock is once again something only you
+    // and your own client know about.
+
+    @SerialEntry(comment = "Show sparks around you when a shock lands, for everyone nearby to see")
+    var showEffectParticles: Boolean = true
+
+    @SerialEntry(comment = "Play a crackle when a shock lands, for everyone nearby to hear")
+    var showEffectSounds: Boolean = true
 
     companion object {
 

@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
+import net.minecraft.sounds.SoundEvent
 import net.minecraft.world.damagesource.DamageSource
 
 //? if >=1.21.11 {
@@ -94,6 +95,19 @@ object McCompat {
         *///?}
 
         return registry.keySet().map { it.toString() }.sorted()
+    }
+
+    /**
+     * The registry id of a sound, for naming one in a packet.
+     *
+     * `SoundEvent.getLocation` was renamed to `location` in 1.21.4.
+     */
+    fun soundId(sound: SoundEvent): ModIdentifier {
+        //? if >=1.21.4 {
+        return sound.location()
+        //?} else {
+        /*return sound.getLocation()
+        *///?}
     }
 
     /**

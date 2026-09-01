@@ -21,6 +21,11 @@ iconFile = "assets/${id}/icon.png"
 #?}
 displayURL = "https://openshock.org/"
 
+# The sneak-and-scroll gesture has to cancel a wheel event before vanilla moves the hotbar.
+# See MouseHandlerMixin for why nothing else is early enough.
+[[mixins]]
+config = "shockcraft.mixins.json"
+
 [[dependencies.${id}]]
 modId = "minecraft"
 type = "required"

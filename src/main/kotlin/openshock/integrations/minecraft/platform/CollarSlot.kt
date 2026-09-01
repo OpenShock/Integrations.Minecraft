@@ -28,8 +28,14 @@ object CollarSlot {
      *
      * Resolved once and never initialised (`initialize = false`), so a missing mod costs one failed
      * lookup rather than an exception on every press.
+     *
+     * Public because it decides more than where to look for a worn collar: [ModContent] reads it
+     * at registration to decide whether the collar is equippable in the vanilla leggings slot at
+     * all. Safe to read from there - this object's own initialisation touches nothing but the lazy
+     * delegate, and [Api], which is the half that names [ModContent], is a separate object that is
+     * not initialised until something actually calls it.
      */
-    private val available: Boolean by lazy {
+    val available: Boolean by lazy {
         runCatching {
             Class.forName("eu.pb4.trinkets.api.TrinketsApi", false, CollarSlot::class.java.classLoader)
         }.isSuccess
@@ -62,7 +68,8 @@ object CollarSlot {
  */
 object CollarSlot {
 
-    private val available: Boolean by lazy {
+    /** @see the 26.1+ variant of this file, which explains why this is public. */
+    val available: Boolean by lazy {
         runCatching {
             Class.forName("dev.emi.trinkets.api.TrinketsApi", false, CollarSlot::class.java.classLoader)
         }.isSuccess
@@ -91,7 +98,8 @@ object CollarSlot {
  */
 object CollarSlot {
 
-    private val available: Boolean by lazy {
+    /** @see the 26.1+ variant of this file, which explains why this is public. */
+    val available: Boolean by lazy {
         runCatching {
             Class.forName("top.theillusivec4.curios.api.CuriosApi", false, CollarSlot::class.java.classLoader)
         }.isSuccess
