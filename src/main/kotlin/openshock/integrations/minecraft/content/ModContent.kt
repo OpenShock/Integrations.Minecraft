@@ -114,8 +114,9 @@ object ModContent {
      * `humanoid_leggings` rather than `humanoid` is what makes the cuff sit close: it is the only
      * layer vanilla draws on the half-pixel-inflated armour model rather than the full-pixel one.
      * The texture paints the right leg cube (x 0-15, y 20-31, hip at the top) and nothing else;
-     * the leggings layer also draws the body, which is left blank on purpose. A 64x32 armour
-     * sheet mirrors the legs, so this way of wearing it shows a cuff on both.
+     * the leggings layer also draws the body, which is left blank on purpose. The band sits at
+     * the bottom of that range so it lands on the ankle, where the accessory-slot model puts it.
+     * A 64x32 armour sheet mirrors the legs, so this way of wearing it shows a cuff on both.
      */
     val EQUIPMENT_ASSET: ResourceKey<EquipmentAsset> =
         ResourceKey.create(EquipmentAssets.ROOT_ID, McCompat.identifier(ShockCraft.MOD_ID, "collar"))
@@ -130,8 +131,12 @@ object ModContent {
      * always has somewhere to go, and never two places it could be at once.
      *
      * The leg is deliberate. A shocker does not go near a neck, and this mod should not be the
-     * picture that says otherwise - so the thing worn is a cuff on the thigh, which is where one
+     * picture that says otherwise - so the thing worn is a cuff on the ankle, which is where one
      * actually goes. The item keeps the name: a collar is the agreement, not the placement.
+     *
+     * Where exactly is set by the `offset` in `assets/shockcraft/trinkets/collar.json`, which is
+     * measured in fractions of the leg's own bounding box rather than in pixels - -0.65 puts the
+     * band just clear of the foot. The leggings texture is painted to match.
      *
      * Everything a collar does, it does by being worn and by carrying an id, both read from the
      * outside; [CollarItem] exists only to put that id on the tooltip.

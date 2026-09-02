@@ -7,7 +7,7 @@
       "type": "model",
       "model": "shockcraft:item/collar_worn",
       "model_part": "right_leg",
-      "offset": [0, 0.5, 0]
+      "offset": [0, -0.65, 0]
     }
   ]
 }
