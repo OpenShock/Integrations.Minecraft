@@ -131,12 +131,13 @@ object ModContent {
      * always has somewhere to go, and never two places it could be at once.
      *
      * The leg is deliberate. A shocker does not go near a neck, and this mod should not be the
-     * picture that says otherwise - so the thing worn is a cuff on the ankle, which is where one
-     * actually goes. The item keeps the name: a collar is the agreement, not the placement.
+     * picture that says otherwise - so the thing worn is a cuff on the lower leg, which is where
+     * one actually goes. The item keeps the name: a collar is the agreement, not the placement.
      *
-     * Where exactly is set by the `offset` in `assets/shockcraft/trinkets/collar.json`, which is
-     * measured in fractions of the leg's own bounding box rather than in pixels - -0.65 puts the
-     * band just clear of the foot. The leggings texture is painted to match.
+     * Where exactly is set by the `offset` in `assets/shockcraft/trinkets/collar.json`, measured
+     * in fractions of the leg part's own bounding box rather than in pixels: 0 is the knee, -1 is
+     * the sole of the foot, and -0.3 sits it on the calf. The leggings texture is painted to
+     * match, so moving one means moving the other.
      *
      * Everything a collar does, it does by being worn and by carrying an id, both read from the
      * outside; [CollarItem] exists only to put that id on the tooltip.

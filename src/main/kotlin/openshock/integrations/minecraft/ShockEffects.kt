@@ -4,12 +4,16 @@ import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
 import net.minecraft.core.particles.SimpleParticleType
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundSource
 import openshock.integrations.minecraft.api.RemoteMode
 import openshock.integrations.minecraft.platform.McCompat
 import java.util.UUID
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 //? if >=1.21.5 {
 import openshock.integrations.minecraft.content.ModContent
 //?} else {
@@ -49,14 +53,39 @@ object ShockEffects {
     /** 10 bursts a second: dense enough to read as continuous, sparse enough to stay cheap. */
     private const val TICKS_BETWEEN_BURSTS = 2L
 
+    /** The two ankles the shocker sits on, as a sign along the player's right. */
+    private val ANKLES = intArrayOf(-1, 1)
+
+    /** How far around the body one arc travels at most, in radians - a bit over a third. */
+    private const val ARC_SWEEP = 2.4
+
+    /** Segments per arc; the particle count is one more than this. Three reads as a line. */
+    private const val ARC_STEPS = 3
+
+    /** Below this a shock is a twitch, and an afterglow would oversell it. */
+    private const val MOTE_FROM_INTENSITY = 50
+
+    /** One burst in five, so a strong shock sheds about two motes a second. */
+    private const val MOTE_ONE_IN = 5
+
+
+    /**
+     * How a mode arranges its particles.
+     *
+     * [CLOUD] is a puff around the player, which is all a buzz or a beep needs to be visible.
+     * [ARCS] draws electricity instead - jets off the ankles and lines crawling over the body -
+     * and costs a packet per particle, so it is worth it only for the mode meant to look violent.
+     */
+    private enum class Shape { CLOUD, ARCS }
 
     /**
      * How each mode is dressed.
      *
-     * [perHundred] is how many extra particles a full-strength control adds over a minimum of one,
-     * so a nudge and the real thing do not look alike. [volume] and [pitch] are the same idea for
-     * the sound, with [wobble] spreading the pitch a little each time so a run of them reads as
-     * crackling rather than as a stuck loop.
+     * [perHundred] is how much a full-strength control adds over a minimum of one, so a nudge and
+     * the real thing do not look alike - particles under [Shape.CLOUD], whole arcs under
+     * [Shape.ARCS], which is why the shock's number is so much smaller than it looks. [volume] and
+     * [pitch] are the same idea for the sound, with [wobble] spreading the pitch a little each
+     * time so a run of them reads as crackling rather than as a stuck loop.
      *
      * [snapEveryTicks] has to match the length of the audio behind the event. A control can last
      * anywhere from a third of a second to thirty, so the sound is retriggered to cover it - and
@@ -65,6 +94,7 @@ object ShockEffects {
      */
     private class Dressing(
         val particle: SimpleParticleType,
+        val shape: Shape,
         val perHundred: Int,
         val sound: SoundEvent,
         val volume: Float,
@@ -92,7 +122,10 @@ object ShockEffects {
     *///?}
 
     private val dressings: Map<RemoteMode, Dressing> = mapOf(
-        // An arc: bright, fast, unmistakable.
+        // An arc: bright, fast, unmistakable, and drawn as actual arcs rather than as a puff.
+        //
+        // Two per hundred, so a 100% shock crawls with three at once and a 10% one has a single
+        // arc flickering somewhere on the body. Any more and they stop being legible as lines.
         //
         // 89 ticks is `assets/shockcraft/sounds/shock.ogg` rounded *down* - it runs 4.463s, which
         // is 89.3 ticks - so a long shock retriggers a hair early and the loop overlaps by ~13ms
@@ -102,17 +135,17 @@ object ShockEffects {
         // Barely any pitch wobble either. Detuning a real recording by a fifth each time, which
         // is what suited a repeated vanilla thunderclap, would just make it sound broken.
         RemoteMode.Shock to Dressing(
-            ParticleTypes.ELECTRIC_SPARK, 5,
+            ParticleTypes.ELECTRIC_SPARK, Shape.ARCS, 2,
             shockSound, 0.15f, 0.25f, 1.0f, 0.08f, 89L,
         ),
         // A buzz, pitched down and kept quiet so it reads as something on a leg.
         RemoteMode.Vibrate to Dressing(
-            ParticleTypes.CRIT, 3,
+            ParticleTypes.CRIT, Shape.CLOUD, 3,
             vibrateSound, 0.12f, 0.18f, 0.7f, 0.2f, 10L,
         ),
         // A beep: notes and a chime, standing in for the collar's own speaker.
         RemoteMode.Sound to Dressing(
-            ParticleTypes.NOTE, 2,
+            ParticleTypes.NOTE, Shape.CLOUD, 2,
             beepSound, 0.15f, 0.20f, 1.2f, 0.6f, 10L,
         ),
     )
@@ -212,7 +245,21 @@ object ShockEffects {
         /*player.serverLevel()
         *///?}
 
+    /** One frame of whatever this mode looks like, drawn fresh wherever the player is now. */
     private fun burst(player: ServerPlayer, dressing: Dressing, intensity: Int) {
+        when (dressing.shape) {
+            Shape.CLOUD -> cloud(player, dressing, intensity)
+            Shape.ARCS -> arcs(player, dressing, intensity)
+        }
+    }
+
+    /**
+     * A puff of particles standing in the player, which is all a buzz or a beep needs.
+     *
+     * One packet for the lot: with a positive count the three offsets are a gaussian spread that
+     * the receiving client draws itself, so the whole cloud costs what a single particle would.
+     */
+    private fun cloud(player: ServerPlayer, dressing: Dressing, intensity: Int) {
         val level = serverLevel(player)
 
         val count = 1 + intensity * dressing.perHundred / 100
@@ -231,6 +278,104 @@ object ShockEffects {
             // Barely any: the particles should sit on the player, not spray off them.
             0.05,
         )
+    }
+
+    /**
+     * A shock, drawn as electricity instead of as confetti.
+     *
+     * Three things go on at once. Sparks jet off both ankles, because that is where the shocker
+     * actually sits on the model, so the effect starts where the hardware is rather than in the
+     * middle of the torso. Arcs crawl across the body: each one is a chord between two points on
+     * the cylinder around the player, bowed outwards so it stands off them, and drawn as a line
+     * of sparks left hanging in place - stationary is the whole trick, because a spark that
+     * drifts stops reading as part of a line. And a strong control sheds the odd end rod mote
+     * floating away, so a full-strength shock has an afterglow that a nudge does not.
+     *
+     * Every particle is placed individually, since vanilla will only let you aim one at a time:
+     * [ServerLevel.sendParticles] reads the three offsets as a spread when the count is positive
+     * and as the velocity when it is zero. So this costs a packet each where [cloud] costs one
+     * in total - fine for the handful below, which only go out while somebody is being shocked
+     * and only to players within 32 blocks, but the reason the counts stay small.
+     */
+    private fun arcs(player: ServerPlayer, dressing: Dressing, intensity: Int) {
+        val level = serverLevel(player)
+        val rng = player.random
+
+        val height = player.bbHeight.toDouble()
+        val radius = player.bbWidth * 0.3
+
+        // Yaw 0 faces +Z, which puts the player's right at (cos, sin). Hanging the jets off that
+        // rather than off a fixed compass direction keeps them on the ankles as the player turns.
+        val yaw = Math.toRadians(player.yBodyRot.toDouble())
+        val rightX = cos(yaw)
+        val rightZ = sin(yaw)
+
+        for (side in ANKLES) {
+            level.spark(
+                dressing.particle,
+                player.x + rightX * side * radius * 0.7,
+                player.y + 0.1,
+                player.z + rightZ * side * radius * 0.7,
+                rightX * side * 0.25 + rng.nextGaussian() * 0.05,
+                0.08 + rng.nextDouble() * 0.1,
+                rightZ * side * 0.25 + rng.nextGaussian() * 0.05,
+            )
+        }
+
+        repeat(1 + intensity * dressing.perHundred / 100) {
+            val fromAngle = rng.nextDouble() * PI * 2
+            val toAngle = fromAngle + (rng.nextDouble() - 0.5) * ARC_SWEEP
+            val fromY = 0.15 + rng.nextDouble() * (height - 0.3)
+            val toY = (fromY + (rng.nextDouble() - 0.5) * height).coerceIn(0.1, height - 0.1)
+
+            for (step in 0..ARC_STEPS) {
+                val along = step.toDouble() / ARC_STEPS
+                val angle = fromAngle + (toAngle - fromAngle) * along
+
+                // Widest in the middle, so the arc bows away from the body instead of tracing it.
+                val out = radius * (1.0 + 0.4 * sin(along * PI))
+
+                level.spark(
+                    dressing.particle,
+                    player.x + cos(angle) * out,
+                    player.y + fromY + (toY - fromY) * along,
+                    player.z + sin(angle) * out,
+                    rng.nextGaussian() * 0.01,
+                    rng.nextGaussian() * 0.01,
+                    rng.nextGaussian() * 0.01,
+                )
+            }
+        }
+
+        if (intensity >= MOTE_FROM_INTENSITY && rng.nextInt(MOTE_ONE_IN) == 0) {
+            level.spark(
+                ParticleTypes.END_ROD,
+                player.x + (rng.nextDouble() - 0.5) * radius * 2,
+                player.y + 0.2 + rng.nextDouble() * (height - 0.4),
+                player.z + (rng.nextDouble() - 0.5) * radius * 2,
+                rng.nextGaussian() * 0.02,
+                0.02 + rng.nextDouble() * 0.03,
+                rng.nextGaussian() * 0.02,
+            )
+        }
+    }
+
+    /**
+     * One particle, at exactly this point, moving exactly this way.
+     *
+     * A count of zero is what switches vanilla from scattering to aiming; the speed is folded
+     * into the velocity here so callers only ever think in blocks per tick. See [arcs].
+     */
+    private fun ServerLevel.spark(
+        particle: SimpleParticleType,
+        x: Double,
+        y: Double,
+        z: Double,
+        dx: Double,
+        dy: Double,
+        dz: Double,
+    ) {
+        sendParticles(particle, x, y, z, 0, dx, dy, dz, 1.0)
     }
 
     /**
@@ -265,17 +410,16 @@ object ShockEffects {
         val volume = dressing.volume + intensity * dressing.volumePerHundred / 100f
         val pitch = dressing.pitch + (player.random.nextFloat() - 0.5f) * dressing.wobble
 
-        // A null source means nobody is skipped, so the person it landed on hears it too. Sent
-        // from the server like the particles, so there is no packet of our own going back down.
-        level.playSound(
-            null,
-            player.x,
-            player.y + player.bbHeight * 0.5,
-            player.z,
-            dressing.sound,
-            SoundSource.PLAYERS,
-            volume,
-            pitch,
-        )
+        // Bound to the player rather than played at their coordinates. A positional sound is
+        // pinned to the spot it started at, so a control lasting seconds would be left behind the
+        // moment its wearer walked away from it; this overload sends ClientboundSoundEntityPacket
+        // instead, which every client renders as a sound that follows the entity.
+        //
+        // The particles have no such problem - each burst is spawned fresh at wherever the player
+        // is that tick - which is why only the sound needed this.
+        //
+        // A null first argument means nobody is skipped, so the person it landed on hears it too.
+        // Sent from the server like the particles, so there is no packet of our own going down.
+        level.playSound(null, player, dressing.sound, SoundSource.PLAYERS, volume, pitch)
     }
 }
