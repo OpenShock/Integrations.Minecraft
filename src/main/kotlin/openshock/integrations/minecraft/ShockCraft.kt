@@ -109,7 +109,7 @@ object ShockCraft {
             logger.debug("Game menu closed")
         }
 
-        // Pause menu is open or one of its childs. Reset so we dont shock when you close it again and have taken damage
+        // Reset so we dont shock when you close it again having taken damage in a menu
         if(pauseMenuOpen) {
             reset()
             return
@@ -117,7 +117,6 @@ object ShockCraft {
 
         val player = Minecraft.getInstance().player
 
-        // Player does not exist, reset and return
         if (player == null) {
             reset()
             return
@@ -125,7 +124,6 @@ object ShockCraft {
 
         val creativeOrSpectator = player.isCreative || player.isSpectator
 
-        // We usually cannot take damage in creative or spectator, reset and return
         if (creativeOrSpectator) {
             reset()
             return
@@ -141,11 +139,9 @@ object ShockCraft {
         val damageSinceLastTick = (lastTickHealth - player.health).coerceAtLeast(0f)
         val xpLevelChange = player.experienceLevel - lastTickXpLevel
 
-        // Set last tick health and experience level, we already calculated what we need
         lastTickHealth = player.health
         lastTickXpLevel = player.experienceLevel
 
-        // Did we take damage?
         if (damageSinceLastTick > 0) {
             // The exact id rather than the message id, so the log names damage the same way the
             // Exact Damage Types picker does and can be copied straight into the manual list.

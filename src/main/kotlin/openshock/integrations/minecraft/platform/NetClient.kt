@@ -36,6 +36,7 @@ object NetClient {
         GlobalScope.launch {
             RemoteControl.onRemoteFired(
                 payload.collarId,
+                payload.presser,
                 RemoteMode.byName(payload.mode),
                 payload.intensity.toByte(),
                 payload.duration.toUShort(),
@@ -123,6 +124,7 @@ object NetClient {
         GlobalScope.launch {
             RemoteControl.onRemoteFired(
                 payload.collarId,
+                payload.presser,
                 RemoteMode.byName(payload.mode),
                 payload.intensity.toByte(),
                 payload.duration.toUShort(),

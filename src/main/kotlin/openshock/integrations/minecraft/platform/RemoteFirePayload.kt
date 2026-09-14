@@ -9,9 +9,12 @@ import openshock.integrations.minecraft.ShockCraft
 /**
  * Server to client: a remote was pressed at you.
  *
- * It carries which collar was pressed and what the remote asked for, and deliberately nothing
- * else. Who pressed it is absent because the wearer agreed to the collar rather than to a person,
- * and a name on the wire would be a name the sender chose.
+ * It carries which collar was pressed, who pressed it, and what the remote asked for.
+ *
+ * The name is the one the server already holds for whoever used the remote, never anything the
+ * pressing client offered, so nobody can put someone else's name on a shock. It is shown to the
+ * wearer and filed with OpenShock as the control name; it gates nothing, and the wearer still
+ * agreed to the collar rather than to a person.
  *
  * The link id is absent too: the server has already checked the pressing remote against the links
  * on the worn collar, so repeating it here would only be something to forge.
@@ -25,6 +28,14 @@ import openshock.integrations.minecraft.ShockCraft
  */
 data class RemoteFirePayload(
     val collarId: String,
+    /**
+     * Who pressed it, for the wearer to read.
+     *
+     * Display only, and treated as such on arrival - it is bounded and never matched against
+     * anything. See [openshock.integrations.minecraft.RemoteControl], which decides whether the
+     * shock happens from the collar on this player and their own settings, not from this.
+     */
+    val presser: String,
     /**
      * What the remote was set to, by [openshock.integrations.minecraft.api.RemoteMode] name.
      *
@@ -43,17 +54,19 @@ data class RemoteFirePayload(
         val TYPE: CustomPacketPayload.Type<RemoteFirePayload> =
             CustomPacketPayload.Type(McCompat.identifier(ShockCraft.MOD_ID, "remote_fire"))
 
-        // Written out by hand rather than through StreamCodec.composite: four fields is not worth
+        // Written out by hand rather than through StreamCodec.composite: five fields is not worth
         // the generic gymnastics, and this way the wire format is readable at a glance.
         val CODEC: StreamCodec<RegistryFriendlyByteBuf, RemoteFirePayload> = StreamCodec.of(
             { buffer, payload ->
                 buffer.writeUtf(payload.collarId)
+                buffer.writeUtf(payload.presser)
                 buffer.writeUtf(payload.mode)
                 buffer.writeVarInt(payload.intensity)
                 buffer.writeVarInt(payload.duration)
             },
             { buffer ->
                 RemoteFirePayload(
+                    buffer.readUtf(),
                     buffer.readUtf(),
                     buffer.readUtf(),
                     buffer.readVarInt(),

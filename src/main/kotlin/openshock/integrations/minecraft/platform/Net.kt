@@ -66,8 +66,8 @@ object Net {
     fun canReach(player: ServerPlayer): Boolean =
         ServerPlayNetworking.canSend(player, RemoteFirePayload.TYPE)
 
-    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {
-        ServerPlayNetworking.send(player, RemoteFirePayload(collarId, mode, intensity, duration))
+    fun fire(player: ServerPlayer, collarId: String, presser: String, mode: String, intensity: Int, duration: Int) {
+        ServerPlayNetworking.send(player, RemoteFirePayload(collarId, presser, mode, intensity, duration))
     }
 }
 //?} else {
@@ -79,7 +79,7 @@ object Net {
     const val SUPPORTED: Boolean = false
     fun init() {}
     fun canReach(player: ServerPlayer): Boolean = false
-    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {}
+    fun fire(player: ServerPlayer, collarId: String, presser: String, mode: String, intensity: Int, duration: Int) {}
 }
 *///?}
 //?} elif neoforge {
@@ -147,8 +147,8 @@ object Net {
     fun canReach(player: ServerPlayer): Boolean =
         player.connection.hasChannel(RemoteFirePayload.TYPE)
 
-    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {
-        PacketDistributor.sendToPlayer(player, RemoteFirePayload(collarId, mode, intensity, duration))
+    fun fire(player: ServerPlayer, collarId: String, presser: String, mode: String, intensity: Int, duration: Int) {
+        PacketDistributor.sendToPlayer(player, RemoteFirePayload(collarId, presser, mode, intensity, duration))
     }
 }
 //?} else {
@@ -159,7 +159,7 @@ object Net {
     const val SUPPORTED: Boolean = false
     fun init() {}
     fun canReach(player: ServerPlayer): Boolean = false
-    fun fire(player: ServerPlayer, collarId: String, mode: String, intensity: Int, duration: Int) {}
+    fun fire(player: ServerPlayer, collarId: String, presser: String, mode: String, intensity: Int, duration: Int) {}
 }
 *///?}
 *///?}

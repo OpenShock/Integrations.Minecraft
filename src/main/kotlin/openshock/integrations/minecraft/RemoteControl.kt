@@ -34,6 +34,9 @@ object RemoteControl {
     private val MIN_INTENSITY: Byte = 1
     private val MIN_DURATION: UShort = 300u
 
+    /** Longest a Minecraft username can be, and all a name off the wire is ever allowed to be. */
+    private const val MAX_PRESSER_NAME = 16
+
     /**
      * What became of a request, for the log on this machine.
      *
@@ -49,7 +52,8 @@ object RemoteControl {
     /**
      * A remote someone else pressed.
      *
-     * [mode], [intensity] and [duration] are what the remote asked for, never what it gets. The
+     * [presser] is who pressed it, for this player to read - it decides nothing. [mode],
+     * [intensity] and [duration] are what the remote asked for, never what it gets. The
      * caps clamp the numbers on the way through and the per-mode switches can refuse the mode
      * outright, so the answer to "how hard can they get me" is always something this player set
      * rather than something that came with the item.
@@ -60,6 +64,7 @@ object RemoteControl {
      */
     suspend fun onRemoteFired(
         collarId: String,
+        presser: String,
         mode: RemoteMode,
         intensity: Byte,
         duration: UShort,
@@ -82,10 +87,28 @@ object RemoteControl {
             // that breaks.
             intensity.coerceAtMost(account.remoteMaxIntensity).coerceAtLeast(MIN_INTENSITY),
             duration.coerceAtMost(account.remoteMaxDuration).coerceAtLeast(MIN_DURATION),
-            "Collar ${shortCode(collarId)}",
+            controlName(presser, collarId),
         )
 
         return Outcome.Fired
+    }
+
+    /**
+     * What the shock is filed under: who pressed it and which collar, e.g. `Steve (Collar a1b2c3)`.
+     *
+     * This is the string the wearer reads in the action bar and the name the control carries in
+     * OpenShock, so a shock somebody else caused says who, the same way a shock from a mob names
+     * the mob - see [openshock.integrations.minecraft.ShockCraft.controlName].
+     *
+     * Trimmed and cut to length because it came off the wire. It is only ever displayed, so the
+     * worst a silly one can do is look silly, and a blank one falls back to what a press said
+     * before the name was carried at all.
+     */
+    private fun controlName(presser: String, collarId: String): String {
+        val collar = "Collar ${shortCode(collarId)}"
+        val who = presser.trim().take(MAX_PRESSER_NAME)
+
+        return if (who.isEmpty()) collar else "$who ($collar)"
     }
 
     /**

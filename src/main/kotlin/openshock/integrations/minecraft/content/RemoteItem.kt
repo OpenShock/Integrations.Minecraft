@@ -119,7 +119,7 @@ class RemoteItem(properties: Properties) : Item(properties) {
         // its id, so a press reaches the whole group at once.
         for (wearer in Collars.findWearers(server, collarId)) {
             if (!Net.canReach(wearer)) continue
-            Net.fire(wearer, collarId, mode.name, intensity, duration)
+            Net.fire(wearer, collarId, player.name.string, mode.name, intensity, duration)
         }
 
         // Always the same answer, however many that was - including none. A remote that behaved
