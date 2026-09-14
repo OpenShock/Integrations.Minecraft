@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.platform
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import openshock.integrations.minecraft.content.ModContent
@@ -124,7 +124,7 @@ object CollarSlot {
 /*import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 
-/** Stub below 1.21.5, which has no collar to wear in the first place. */
+/** Stub below 1.21.4, which has no collar to wear in the first place. */
 object CollarSlot {
     fun wornStack(entity: LivingEntity): ItemStack? = null
 }

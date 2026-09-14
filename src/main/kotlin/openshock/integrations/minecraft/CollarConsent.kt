@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ConfirmScreen

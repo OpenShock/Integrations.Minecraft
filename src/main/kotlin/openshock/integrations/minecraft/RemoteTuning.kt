@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -35,7 +35,7 @@ import kotlin.math.ceil
  */
 object RemoteTuning {
 
-    //? if >=1.21.5 {
+    //? if >=1.21.4 {
     /** Quiet time before a run of notches is sent as one packet. Roughly a third of a second. */
     private const val SEND_DELAY_TICKS = 6
 
@@ -134,7 +134,7 @@ object RemoteTuning {
         )
     }
     //?} else {
-    /*// Stubs below 1.21.5, which has no remote to tune. They exist rather than the whole object
+    /*// Stubs below 1.21.4, which has no remote to tune. They exist rather than the whole object
     // being compiled away because MouseHandlerMixin is applied on every version and calls into
     // here; a scroll simply never belongs to us there.
     fun onScroll(deltaY: Double): Boolean = false

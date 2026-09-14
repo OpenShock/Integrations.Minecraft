@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.platform
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import openshock.integrations.minecraft.api.RemoteMode

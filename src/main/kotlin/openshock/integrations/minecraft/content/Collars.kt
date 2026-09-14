@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.content
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.core.component.DataComponents
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer

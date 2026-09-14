@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.content
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.ChatFormatting
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -11,10 +11,14 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.TooltipFlag
-import net.minecraft.world.item.component.TooltipDisplay
 import net.minecraft.world.level.Level
 import openshock.integrations.minecraft.platform.Net
+// 1.21.5 rebuilt appendHoverText around a TooltipDisplay and a Consumer, where 1.21.4 hands over
+// the list itself. Only the signature differs - see the two overrides below, which share a body.
+//? if >=1.21.5 {
+import net.minecraft.world.item.component.TooltipDisplay
 import java.util.function.Consumer
+//?}
 
 /**
  * The remote: bind it to a collar held in your other hand, then right-click to press it.
@@ -129,29 +133,41 @@ class RemoteItem(properties: Properties) : Item(properties) {
      * Only ever what the item itself says. It cannot show whether a press would land, because
      * that depends on the wearer's switches and caps, and nothing on this side is ever told.
      */
+    //? if >=1.21.5 {
     override fun appendHoverText(
         stack: ItemStack,
         context: TooltipContext,
         display: TooltipDisplay,
         adder: Consumer<Component>,
         flag: TooltipFlag,
-    ) {
+    ) = lines(stack, adder::accept)
+    //?} else {
+    /*override fun appendHoverText(
+        stack: ItemStack,
+        context: TooltipContext,
+        tooltip: MutableList<Component>,
+        flag: TooltipFlag,
+    ) = lines(stack) { tooltip.add(it) }
+    *///?}
+
+    /** The tooltip itself, written once for both shapes of [appendHoverText]. */
+    private fun lines(stack: ItemStack, adder: (Component) -> Unit) {
         val id = stack.get(ModContent.COLLAR_ID)
 
         if (id == null) {
-            adder.accept(
+            adder(
                 Component.literal("Unbound - hold a collar in your other hand to link it")
                     .withStyle(ChatFormatting.DARK_GRAY)
             )
             return
         }
 
-        adder.accept(
+        adder(
             Component.literal("Presses collar ${ModContent.shortCode(id)}")
                 .withStyle(ChatFormatting.GRAY)
         )
 
-        adder.accept(
+        adder(
             Component.literal(
                 "${RemoteSettings.mode(stack).label} · " +
                     "${RemoteSettings.intensity(stack)}% · " +
@@ -159,7 +175,7 @@ class RemoteItem(properties: Properties) : Item(properties) {
             ).withStyle(ChatFormatting.DARK_GRAY)
         )
 
-        adder.accept(
+        adder(
             Component.literal("Sneak and use to change · sneak and scroll for intensity")
                 .withStyle(ChatFormatting.DARK_GRAY)
         )

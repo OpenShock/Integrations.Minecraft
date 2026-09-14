@@ -19,10 +19,11 @@ plugins {
 // and consume mod dependencies straight off the compile classpath.
 val deobfuscated = stonecutter.eval(mod.minecraftVersion, ">=26.1")
 
-// The collar and remote need the Equippable component, which landed in 1.21.5. Older targets
-// build without them, so their recipes have to be left out too - a recipe naming an item that
-// does not exist is a parse error in the log on every world load.
-val hasItems = stonecutter.eval(mod.minecraftVersion, ">=1.21.5")
+// The collar and remote need the Equippable component and the equipment/item-model layout that
+// came with it - see ModContent, which lists what 1.21.4 is the oldest target to have. Older
+// targets build without them, so their recipes have to be left out too - a recipe naming an item
+// that does not exist is a parse error in the log on every world load.
+val hasItems = stonecutter.eval(mod.minecraftVersion, ">=1.21.4")
 
 // Stonecraft picks the Java version from the Minecraft version (21 for 1.21.x, 25 for 26.x).
 // Kotlin has to follow it rather than pick its own.

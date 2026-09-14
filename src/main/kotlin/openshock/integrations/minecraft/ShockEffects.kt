@@ -14,7 +14,7 @@ import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import openshock.integrations.minecraft.content.ModContent
 //?} else {
 /*import net.minecraft.sounds.SoundEvents
@@ -107,11 +107,11 @@ object ShockEffects {
     /**
      * The sound each mode plays.
      *
-     * The mod's own events from 1.21.5 on, which `assets/shockcraft/sounds.json` maps to whatever
+     * The mod's own events from 1.21.4 on, which `assets/shockcraft/sounds.json` maps to whatever
      * audio it should actually be. Below that there is no collar, no remote and nothing
      * registering a sound event, so the closest vanilla sounds stand in directly.
      */
-    //? if >=1.21.5 {
+    //? if >=1.21.4 {
     private val shockSound: SoundEvent = ModContent.SHOCK_SOUND
     private val vibrateSound: SoundEvent = ModContent.VIBRATE_SOUND
     private val beepSound: SoundEvent = ModContent.BEEP_SOUND

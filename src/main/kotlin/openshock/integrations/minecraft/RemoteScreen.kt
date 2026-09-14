@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.client.gui.components.AbstractSliderButton
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.screens.Screen
@@ -24,7 +24,7 @@ import openshock.integrations.minecraft.utils.shortCode
  * stack. That also means a rejected or lost packet simply leaves the remote as it was.
  *
  * Every label lives on a widget rather than being drawn: `Screen.render` moved off `Screen` in
- * 26.1, and `Button` and `AbstractSliderButton` are identical from 1.21.5 all the way up - so a
+ * 26.1, and `Button` and `AbstractSliderButton` are identical from 1.21.4 all the way up - so a
  * screen built only out of those needs no per-version handling at all.
  */
 class RemoteScreen(

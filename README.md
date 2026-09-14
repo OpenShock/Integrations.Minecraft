@@ -20,6 +20,135 @@
 - Threshold of damage
 - Cooldown between damage shocks
 - Adjustible intensity and duration
+- Shock on level up, or when a phrase you pick shows up in chat
+- Collar and remote items, so somebody else can press it — within caps you set, on a collar you
+  agreed to (1.21.4+)
+- Sparks and a crackle around whoever just got shocked, for everyone nearby (1.21+)
+
+### Compatibility
+
+ShockCraft is built from one source tree for eight Minecraft versions × two loaders
+([Fabric](https://fabricmc.net/) and [NeoForge](https://neoforged.net/)). Every target
+ships the same jar contents; what differs is which features the underlying game version can carry.
+
+| Minecraft | Loaders | Java |
+|---|---|---|
+| 1.20.4 | Fabric, NeoForge | 17 |
+| 1.21 | Fabric, NeoForge | 21 |
+| 1.21.1 | Fabric, NeoForge | 21 |
+| 1.21.4 | Fabric, NeoForge | 21 |
+| 1.21.5 | Fabric, NeoForge | 21 |
+| 1.21.11 and later 1.21.x | Fabric, NeoForge | 21 |
+| 26.1 | Fabric, NeoForge | 25 |
+| 26.2 | Fabric, NeoForge | 25 |
+
+Each build accepts exactly its own version, except the 1.21.11 one, which also takes any 1.21.x
+above it. Nothing is published for 1.20.5–1.20.6, 1.21.2–1.21.3 or 1.21.6–1.21.10 — the loaders
+refuse to load the jar there rather than load it half-broken.
+
+#### What works where
+
+| | 1.20.4 | 1.21 · 1.21.1 | 1.21.4 and up |
+|---|:-:|:-:|:-:|
+| Shock on damage, death, level up, chat phrase | ✅ | ✅ | ✅ |
+| Damage filters, threshold, cooldown, intensity/duration ranges | ✅ | ✅ | ✅ |
+| Config screen, shocker picker, action bar messages | ✅ | ✅ | ✅ |
+| Sparks and sounds around whoever was shocked, for everyone nearby | — | ✅ † | ✅ † |
+| Collar and remote items, recipes, consent prompt | — | — | ✅ † |
+| Remote screen, sneak-and-scroll intensity gesture | — | — | ✅ † |
+| Collar worn in an accessory slot | — | — | ✅ ‡ |
+
+† Needs ShockCraft on the server as well — see below. Singleplayer always counts.
+‡ Needs an accessory mod — see [Optional dependencies](#optional-dependencies).
+
+The two cut-offs are the game's, not choices:
+
+- **1.21** is where the codec-based custom payload API arrives. Below it the mod has no channel at
+  all, so a client cannot tell the server it was just shocked and nothing can be drawn around it.
+- **1.21.4** is the oldest target carrying the whole set the collar needs — the `Equippable`
+  component, `ResourceKey`-based equipment assets, `Properties.setId` and `assets/<ns>/items/`
+  model definitions. Without items there is no collar, so there is no remote either, and the
+  recipes are left out of the jar rather than shipped pointing at items that do not exist.
+
+Everything the mod does *to you* works on every version, because none of it touches the network:
+health, XP and chat are all read off your own client and the shock goes straight to the OpenShock
+API over HTTPS.
+
+#### Client, server, or both
+
+The jar loads on both sides and on dedicated servers, and what you get depends on the other end:
+
+| You are on | What works |
+|---|---|
+| Singleplayer | Everything the version supports |
+| A server running ShockCraft | Everything the version supports |
+| A vanilla or modded server without ShockCraft | Damage, death, level-up and chat shocks, the config screen, the shocker picker. No items, no remotes, no particles |
+
+Nothing is ever forced on you by a server. A remote press arrives as a request and is checked on
+your own machine against the collar you are actually wearing, the modes you allow and the caps you
+set — an operator can put a collar on you, but they cannot make it work.
+
+#### Required dependencies
+
+**Fabric** — all versions need [Fabric API](https://modrinth.com/mod/fabric-api),
+[Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin) and
+[YetAnotherConfigLib](https://modrinth.com/mod/yacl). [Mod Menu](https://modrinth.com/mod/modmenu)
+is listed as required too: it is the only in-game way to reach the config screen on Fabric, since
+the mod adds no keybind of its own. The mod metadata only *recommends* it, so the game still
+starts without it — you would just have to edit the config files by hand.
+
+| Minecraft | Fabric API | Fabric Language Kotlin | YACL | Mod Menu |
+|---|---|---|---|---|
+| 1.20.4 | 0.97.3+1.20.4 | 1.13.13+kotlin.2.4.10 | 3.6.6+1.20.4 | 9.2.0 |
+| 1.21 | 0.102.0+1.21 | 1.13.13+kotlin.2.4.10 | 3.8.2+1.21.1 | 11.0.4 |
+| 1.21.1 | 0.116.15+1.21.1 | 1.13.13+kotlin.2.4.10 | 3.8.2+1.21.1 | 11.0.4 |
+| 1.21.4 | 0.119.4+1.21.4 | 1.13.13+kotlin.2.4.10 | 3.8.2+1.21.4 | 13.0.4 |
+| 1.21.5 | 0.128.2+1.21.5 | 1.13.13+kotlin.2.4.10 | 3.8.2+1.21.5 | 14.0.2 |
+| 1.21.11 | 0.141.6+1.21.11 | 1.13.13+kotlin.2.4.10 | 3.8.2+1.21.11 | 17.0.1-beta.1 |
+| 26.1 | 0.155.2+26.1.2 | 1.13.13+kotlin.2.4.10 | 3.9.6+26.1 | 18.0.0 |
+| 26.2 | 0.158.0+26.2 | 1.13.13+kotlin.2.4.10 | 3.9.6+26.2 | 20.0.1 |
+
+**NeoForge** — [Kotlin for Forge](https://modrinth.com/mod/kotlin-for-forge) supplies the Kotlin
+runtime, and its version range is declared as the `modLoader` version, so an older one makes FML
+reject the jar outright. [YACL](https://modrinth.com/mod/yacl) is declared client-side only here.
+
+| Minecraft | NeoForge (minimum) | Kotlin for Forge (minimum) | YACL |
+|---|---|---|---|
+| 1.20.4 | 20.4.251 | 4.12.0 | 3.6.6+1.20.4 |
+| 1.21 | 21.0.167 | 5.12.0 | 3.8.2+1.21.1 |
+| 1.21.1 | 21.1.248 | 5.12.0 | 3.8.2+1.21.1 |
+| 1.21.4 | 21.4.157 | 5.12.0 | 3.8.2+1.21.4 |
+| 1.21.5 | 21.5.98 | 5.12.0 | 3.8.2+1.21.5 |
+| 1.21.11 | 21.11.45 | 6.3.0 | 3.8.2+1.21.11 |
+| 26.1 | 26.1.2.98 | 6.3.0 | 3.9.6+26.1 |
+| 26.2 | 26.2.0.69 | 6.3.0 | 3.9.6+26.2 |
+
+The versions above are what each target is built and tested against. Fabric API and YACL are
+declared as `*` in the Fabric metadata, so a newer one loads; the NeoForge side declares its
+minimum as an open range, so newer is fine there too.
+
+On Fabric, YACL and Fabric Language Kotlin are hard dependencies on **both** sides, so a Fabric
+dedicated server needs them installed alongside the mod. NeoForge servers only need Kotlin for
+Forge.
+
+#### Optional dependencies
+
+None of these is required, and the mod never checks which mod is installed — it looks for the API
+class, so any mod providing it counts.
+
+**Accessory slot for the collar.** With one installed, the collar is worn in a belt accessory slot
+and shows as a cuff on the ankle. Without one, the collar falls back to the vanilla leggings slot
+instead, so it works either way, but it costs you a pair of leggings. Only relevant from 1.21.4,
+where the collar exists.
+
+| Minecraft | Fabric | NeoForge |
+|---|---|---|
+| 1.20.4 – 1.21.1 | n/a — no collar on these versions | n/a |
+| 1.21.4 · 1.21.5 · 1.21.11 | [Trinkets (Canary)](https://modrinth.com/mod/trinkets-canary) | [Curios](https://modrinth.com/mod/curios) |
+| 26.1 · 26.2 | [Trinkets Updated](https://modrinth.com/mod/trinkets-updated) | [Trinkets Updated](https://modrinth.com/mod/trinkets-updated) |
+
+**[Mod Menu](https://modrinth.com/mod/modmenu)** (Fabric) is the one entry here that is optional only on paper — see above. On NeoForge
+the config button comes from the loader's own mod list and Mod Menu is not involved at all.
 
 ### Config GUI by [YetAnotherConfigLib](https://github.com/isXander/YetAnotherConfigLib)
 
@@ -73,6 +202,10 @@ loader wiring.
 | Loaders | Fabric, NeoForge |
 | Targets | 16 (every version × every loader) |
 | Java | 17 for 1.20.x, 21 for 1.21.x, 25 for 26.x (Gradle downloads any it is missing) |
+
+The per-version dependency versions and the feature differences between targets are in
+[Compatibility](#compatibility); `versions/dependencies/<version>.properties` is the source of
+truth for both.
 
 ### Building
 

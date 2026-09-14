@@ -54,7 +54,7 @@ object Net {
 
         // Remotes only exist where the Equippable component does, and with no remote there is
         // nothing to configure.
-        //? if >=1.21.5 {
+        //? if >=1.21.4 {
         toServer.register(RemoteConfigPayload.TYPE, RemoteConfigPayload.CODEC)
 
         ServerPlayNetworking.registerGlobalReceiver(RemoteConfigPayload.TYPE) { payload, context ->
@@ -135,7 +135,7 @@ object Net {
                 }
                 // Remotes only exist where the Equippable component does, and with no remote
                 // there is nothing to configure.
-                //? if >=1.21.5 {
+                //? if >=1.21.4 {
                 .playToServer(RemoteConfigPayload.TYPE, RemoteConfigPayload.CODEC) { payload, context ->
                     val player = context.player() as? ServerPlayer ?: return@playToServer
                     RemoteConfig.receive(player, payload)

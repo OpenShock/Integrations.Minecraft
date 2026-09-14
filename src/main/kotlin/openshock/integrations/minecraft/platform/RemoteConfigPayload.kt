@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.platform
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.network.RegistryFriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload

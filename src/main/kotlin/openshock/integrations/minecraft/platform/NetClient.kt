@@ -67,7 +67,7 @@ object NetClient {
      * Best effort like everything else on this channel: a server without the mod cannot receive
      * it, and the remote simply keeps the settings it had.
      */
-    //? if >=1.21.5 {
+    //? if >=1.21.4 {
     fun sendRemoteConfig(hand: InteractionHand, mode: RemoteMode, intensity: Int, duration: Int) {
         Minecraft.getInstance().execute {
             if (!ClientPlayNetworking.canSend(RemoteConfigPayload.TYPE)) return@execute
@@ -160,7 +160,7 @@ object NetClient {
      * Best effort like everything else on this channel: a server without the mod cannot receive
      * it, and the remote simply keeps the settings it had.
      */
-    //? if >=1.21.5 {
+    //? if >=1.21.4 {
     fun sendRemoteConfig(hand: InteractionHand, mode: RemoteMode, intensity: Int, duration: Int) {
         Minecraft.getInstance().execute {
             val connection = Minecraft.getInstance().connection ?: return@execute

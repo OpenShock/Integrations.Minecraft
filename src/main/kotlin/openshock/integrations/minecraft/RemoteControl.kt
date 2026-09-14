@@ -7,7 +7,7 @@ import openshock.integrations.minecraft.config.AccountConfig
 import openshock.integrations.minecraft.utils.shortCode
 import org.slf4j.LoggerFactory
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.client.Minecraft
 import openshock.integrations.minecraft.content.Collars
 import openshock.integrations.minecraft.content.ModContent
@@ -112,7 +112,7 @@ object RemoteControl {
      * stops shocks immediately and no stale state can keep one alive.
      */
     private fun wearingArmed(collarId: String): Boolean {
-        //? if >=1.21.5 {
+        //? if >=1.21.4 {
         val player = Minecraft.getInstance().player ?: return false
 
         val stack = Collars.wornStack(player)
@@ -121,7 +121,7 @@ object RemoteControl {
 
         return CollarConsent.armed(collarId)
         //?} else {
-        /*// No items below 1.21.5, so there is no collar to be wearing and nothing can be armed.
+        /*// No items below 1.21.4, so there is no collar to be wearing and nothing can be armed.
         return false
         *///?}
     }

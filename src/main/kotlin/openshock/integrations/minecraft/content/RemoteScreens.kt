@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.content
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.ItemStack
 

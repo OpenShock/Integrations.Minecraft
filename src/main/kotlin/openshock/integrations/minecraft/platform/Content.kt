@@ -1,7 +1,7 @@
 package openshock.integrations.minecraft.platform
 
 //? if fabric {
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.CreativeModeTabs
@@ -64,14 +64,14 @@ object Content {
     }
 }
 //?} else {
-/*/** Stub below 1.21.5, which has no Equippable component and therefore no collar. */
+/*/** Stub below 1.21.4, which has no Equippable component and therefore no collar. */
 object Content {
     fun init() {}
     fun initClient() {}
 }
 *///?}
 //?} elif neoforge {
-/*//? if >=1.21.5 {
+/*//? if >=1.21.4 {
 import net.neoforged.fml.ModLoadingContext
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent
 import net.neoforged.neoforge.registries.RegisterEvent
@@ -128,7 +128,7 @@ object Content {
     }
 }
 //?} else {
-/*/** Stub below 1.21.5, which has no Equippable component and therefore no collar. */
+/*/** Stub below 1.21.4, which has no Equippable component and therefore no collar. */
 object Content {
     fun init() {}
     fun initClient() {}

@@ -88,7 +88,7 @@ object ShockCraft {
     fun onClientTick() {
         // Watched here because there is no equip event that fires on the wearer however the collar
         // arrived - dragged in, right-clicked, dispensed, or put there by an operator.
-        //? if >=1.21.5 {
+        //? if >=1.21.4 {
         CollarConsent.tick()
 
         // Only to send what sneak-and-scroll dialled in, once it settles. The scrolling itself

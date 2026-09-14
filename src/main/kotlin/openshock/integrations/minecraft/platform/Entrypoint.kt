@@ -15,7 +15,7 @@ import openshock.integrations.minecraft.ShockCraft
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import openshock.integrations.minecraft.ShockEffects
 //?}
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import openshock.integrations.minecraft.RemoteScreen
 import openshock.integrations.minecraft.content.RemoteScreens
 //?}
@@ -61,7 +61,7 @@ class FabricEntrypoint : ClientModInitializer {
 
         // Handed in rather than reached for: RemoteItem runs on a dedicated server too, so it
         // must never name the screen it opens. See RemoteScreens.
-        //? if >=1.21.5 {
+        //? if >=1.21.4 {
         RemoteScreens.opener = { stack, hand -> McCompat.setScreen(RemoteScreen(stack, hand)) }
         //?}
 
@@ -101,7 +101,7 @@ import net.neoforged.neoforge.event.TickEvent
 import openshock.integrations.minecraft.ConfigScreen
 import openshock.integrations.minecraft.ShockCraft
 import org.slf4j.LoggerFactory
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import openshock.integrations.minecraft.RemoteScreen
 import openshock.integrations.minecraft.content.RemoteScreens
 //?}
@@ -156,7 +156,7 @@ private object ClientBootstrap {
 
         // Handed in rather than reached for: RemoteItem runs on a dedicated server too, so it
         // must never name the screen it opens. See RemoteScreens.
-        //? if >=1.21.5 {
+        //? if >=1.21.4 {
         RemoteScreens.opener = { stack, hand -> McCompat.setScreen(RemoteScreen(stack, hand)) }
         //?}
 

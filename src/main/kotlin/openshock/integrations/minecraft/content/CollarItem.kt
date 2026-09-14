@@ -1,13 +1,17 @@
 package openshock.integrations.minecraft.content
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.TooltipFlag
+// 1.21.5 rebuilt appendHoverText around a TooltipDisplay and a Consumer, where 1.21.4 hands over
+// the list itself. Only the signature differs - see the two overrides below, which share a body.
+//? if >=1.21.5 {
 import net.minecraft.world.item.component.TooltipDisplay
 import java.util.function.Consumer
+//?}
 
 /**
  * The collar. Worn by whoever gets shocked.
@@ -18,17 +22,29 @@ import java.util.function.Consumer
  */
 class CollarItem(properties: Properties) : Item(properties) {
 
+    //? if >=1.21.5 {
     override fun appendHoverText(
         stack: ItemStack,
         context: TooltipContext,
         display: TooltipDisplay,
         adder: Consumer<Component>,
         flag: TooltipFlag,
-    ) {
+    ) = lines(stack, adder::accept)
+    //?} else {
+    /*override fun appendHoverText(
+        stack: ItemStack,
+        context: TooltipContext,
+        tooltip: MutableList<Component>,
+        flag: TooltipFlag,
+    ) = lines(stack) { tooltip.add(it) }
+    *///?}
+
+    /** The tooltip itself, written once for both shapes of [appendHoverText]. */
+    private fun lines(stack: ItemStack, adder: (Component) -> Unit) {
         val id = stack.get(ModContent.COLLAR_ID)
 
         if (id == null) {
-            adder.accept(
+            adder(
                 Component.literal("Unlinked - no remotes bound to it yet")
                     .withStyle(ChatFormatting.DARK_GRAY)
             )
@@ -38,7 +54,7 @@ class CollarItem(properties: Properties) : Item(properties) {
         // The same code the remotes bound to it show. Six characters is enough to tell a handful
         // of collars apart at a glance, which is all anyone needs; the full id stays in the
         // component for the code to use.
-        adder.accept(
+        adder(
             Component.literal("Collar ${ModContent.shortCode(id)}")
                 .withStyle(ChatFormatting.GRAY)
         )

@@ -1,6 +1,6 @@
 package openshock.integrations.minecraft.content
 
-//? if >=1.21.5 {
+//? if >=1.21.4 {
 import com.mojang.serialization.Codec
 import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.component.DataComponents
@@ -25,10 +25,15 @@ import openshock.integrations.minecraft.platform.McCompat
  * and lives in [openshock.integrations.minecraft.platform.Content], because Fabric writes straight
  * into the registry while NeoForge insists on doing it from an event.
  *
- * Items exist from 1.21.5 on. That is where the Equippable component landed, which is what lets a
- * collar be worn without being armour - before it, the only way onto a player's head was to extend
- * ArmorItem and register an armour material, which is a second implementation of the same idea.
- * Older versions keep everything they already have; they simply have no items.
+ * Items exist from 1.21.4 on, which is the oldest target carrying the whole set the collar needs:
+ * the Equippable component, so a collar can be worn without being armour; ResourceKey-based
+ * EquipmentAssets, so the worn look resolves; Properties.setId; and `assets/<ns>/items/` model
+ * definitions. Equippable itself landed in 1.21.2, but 1.21.2 and 1.21.3 are not built for, so
+ * 1.21.4 is where the line falls.
+ *
+ * Below that the `world/item/equipment` package does not exist at all, and the only way onto a
+ * player would be to extend ArmorItem and register an armour material - a second implementation of
+ * the same idea. Those versions keep everything they already have; they simply have no items.
  */
 object ModContent {
 
