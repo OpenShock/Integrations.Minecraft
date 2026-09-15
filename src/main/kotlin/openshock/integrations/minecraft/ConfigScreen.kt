@@ -12,6 +12,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
+import openshock.integrations.minecraft.api.RemoteMode
 import openshock.integrations.minecraft.api.Shocker
 import openshock.integrations.minecraft.api.ShockerCatalog
 import openshock.integrations.minecraft.config.AccountConfig
@@ -21,6 +22,7 @@ import openshock.integrations.minecraft.config.DamageFilterMode
 import openshock.integrations.minecraft.config.DamageShockMode
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
+import openshock.integrations.minecraft.platform.NetClient
 import openshock.integrations.minecraft.utils.shortCode
 
 /**
@@ -28,6 +30,14 @@ import openshock.integrations.minecraft.utils.shortCode
  * NeoForge through IConfigScreenFactory, both in [openshock.integrations.minecraft.platform].
  */
 object ConfigScreen {
+
+    /**
+     * What the preview button draws as. Full strength and a couple of seconds, because the point
+     * of it is seeing the effect at its biggest - it is not shocking anybody, so there is nothing
+     * to be gentle about.
+     */
+    private const val PREVIEW_INTENSITY: Byte = 100
+    private val PREVIEW_DURATION: UShort = 2000u
 
     fun create(parent: Screen?): Screen {
         // One screen over two config files, so the save button has to fan out to both handlers
@@ -80,252 +90,383 @@ object ConfigScreen {
         return builder
             .title(Component.literal("ShockCraft - OpenShock Minecraft Integration"))
 
-            .category(
-                ConfigCategory.createBuilder()
-                    .name(Component.literal("Behaviour / Shock Settings"))
-
-                    .group(OptionGroup.createBuilder()
-                        .name(Component.literal("General"))
-                        .description(OptionDescription.of(Component.literal("General settings for the mod")))
-
-                        .option(Option.createBuilder<Boolean>()
-                            .name(Component.literal("Display Shocks in Action Bar"))
-                            .description(OptionDescription.of(Component.literal("Displays Shocks or all kinds of commands in the action bar on your screen")))
-                            .controller { TickBoxControllerBuilder.create(it) }
-                            .binding(defaults.displayShocksInActionBar, { config.displayShocksInActionBar }, { config.displayShocksInActionBar = it })
-                            .build()
-                        ).build()
-                    )
-
-                    .group(OptionGroup.createBuilder()
-                        .name(Component.literal("On Damage"))
-                        .description(OptionDescription.of(Component.literal("Settings for shocking on damage")))
-
-                        .option(Option.createBuilder<Boolean>()
-                            .name(Component.literal("Enabled"))
-                            .description(OptionDescription.of(Component.literal("Enable shocking on damage")))
-                            .controller { TickBoxControllerBuilder.create(it) }
-                            .binding(defaults.onDamage, { config.onDamage }, { config.onDamage = it })
-                            .build()
-                        )
-                        .option(Option.createBuilder<DamageShockMode>()
-                            .name(Component.literal("On Damage Action"))
-                            .description(
-                                OptionDescription.of(
-                                    Component.literal(
-                                        "Defines what happens when you receive damage.\n" +
-                                                "Low Hp = You get shocked at higher intensity the less HP you have\n" +
-                                                "Damage Amount = You get shocked the amount of damage you have received"
-                                    )
-                                )
-                            )
-                            .controller {
-                                EnumControllerBuilder.create(it).enumClass(DamageShockMode::class.java)
-                            }
-                            .binding(defaults.damageMode, { config.damageMode }, { config.damageMode = it })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Minimum Intensity"))
-                            .controller { option: Option<Int> ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1)
-                            }
-                            .binding(
-                                defaults.intensityMin.toInt(),
-                                { config.intensityMin.toInt() },
-                                { config.intensityMin = it.toByte() })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Maximum Intensity"))
-                            .controller { option: Option<Int> ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1)
-                            }
-                            .binding(
-                                defaults.intensityMax.toInt(),
-                                { config.intensityMax.toInt() },
-                                { config.intensityMax = it.toByte() })
-                            .build()
-                        )
-
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Damage Threshold"))
-                            .description(OptionDescription.of(Component.literal("How much damage you need to take, or have until a shock is sent")))
-                            .controller { option: Option<Int> ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 20)
-                                    .step(1)
-                            }
-                            .binding(
-                                defaults.damageThreshold.toInt(),
-                                { config.damageThreshold.toInt() },
-                                { config.damageThreshold = it.toUInt() })
-                            .build()
-                        )
-
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Cooldown"))
-                            .description(OptionDescription.of(Component.literal("Cooldown between on damage shocks")))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(300, 60_000)
-                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
-                            }
-                            .binding(
-                                defaults.cooldown.toInt(),
-                                { config.cooldown.toInt() },
-                                { config.cooldown = it.toUShort() })
-                            .build()
-                        )
-
-                        .build()
-                    )
-
-                    .groups(damageFilterGroups(defaults, config))
-
-                    .group(OptionGroup.createBuilder()
-                        .name(Component.literal("On Death"))
-                        .description(OptionDescription.of(Component.literal("Defines what happens when you die")))
-
-                        .option(Option.createBuilder<Boolean>()
-                            .name(Component.literal("Enabled"))
-                            .description(OptionDescription.of(Component.literal("Enable shocking on death")))
-                            .controller { TickBoxControllerBuilder.create(it) }
-                            .binding(defaults.onDeath, { config.onDeath }, { config.onDeath = it })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Intensity"))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1)
-                            }
-                            .binding(
-                                defaults.onDeathIntensity.toInt(),
-                                { config.onDeathIntensity.toInt() },
-                                { config.onDeathIntensity = it.toByte() })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Duration"))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(300, 30_000)
-                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
-                            }
-                            .binding(
-                                defaults.onDeathDuration.toInt(),
-                                { config.onDeathDuration.toInt() },
-                                { config.onDeathDuration = it.toUShort() })
-                            .build()
-                        )
-
-                        .build()
-                    )
-
-                    .group(OptionGroup.createBuilder()
-                        .name(Component.literal("On Level Up"))
-                        .description(OptionDescription.of(Component.literal("Defines what happens when you gain an XP level")))
-
-                        .option(Option.createBuilder<Boolean>()
-                            .name(Component.literal("Enabled"))
-                            .description(OptionDescription.of(Component.literal("Enable shocking on level up")))
-                            .controller { TickBoxControllerBuilder.create(it) }
-                            .binding(defaults.onLevelUp, { config.onLevelUp }, { config.onLevelUp = it })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Intensity"))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1)
-                            }
-                            .binding(
-                                defaults.onLevelUpIntensity.toInt(),
-                                { config.onLevelUpIntensity.toInt() },
-                                { config.onLevelUpIntensity = it.toByte() })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Duration"))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(300, 30_000)
-                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
-                            }
-                            .binding(
-                                defaults.onLevelUpDuration.toInt(),
-                                { config.onLevelUpDuration.toInt() },
-                                { config.onLevelUpDuration = it.toUShort() })
-                            .build()
-                        )
-
-                        .build()
-                    )
-
-                    .group(OptionGroup.createBuilder()
-                        .name(Component.literal("On Chat Message"))
-                        .description(OptionDescription.of(Component.literal("Defines what happens when a specific chat phrase is sent or received")))
-
-                        .option(Option.createBuilder<Boolean>()
-                            .name(Component.literal("Enable for Chat Messages"))
-                            .description(OptionDescription.of(Component.literal("Enable shocking when a message with the key phrase is sent/received")))
-                            .controller { TickBoxControllerBuilder.create(it) }
-                            .binding(defaults.onChatEvent, { config.onChatEvent }, { config.onChatEvent = it })
-                            .build()
-                        )
-                        .option(Option.createBuilder<String>()
-                            .name(Component.literal("Key Phrase"))
-                            .description(OptionDescription.of(Component.literal("The phrase to trigger the shock")))
-                            .controller { StringControllerBuilder.create(it) }
-                            .binding(defaults.chatMessagePhrase, { config.chatMessagePhrase }, { config.chatMessagePhrase = it })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Intensity"))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(1, 100)
-                                    .step(1)
-                            }
-                            .binding(
-                                defaults.onChatMessageIntensity.toInt(),
-                                { config.onChatMessageIntensity.toInt() },
-                                { config.onChatMessageIntensity = it.toByte() })
-                            .build()
-                        )
-                        .option(Option.createBuilder<Int>()
-                            .name(Component.literal("Duration"))
-                            .controller { option ->
-                                IntegerSliderControllerBuilder.create(option)
-                                    .range(300, 30_000)
-                                    .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
-                            }
-                            .binding(
-                                defaults.onChatMessageDuration.toInt(),
-                                { config.onChatMessageDuration.toInt() },
-                                { config.onChatMessageDuration = it.toUShort() })
-                            .build()
-                        )
-
-                        .build()
-                    )
-
-                    .build()
-            )
-
+            // Setup first: a token and a shocker are the two things nothing else works without.
+            // After that the tabs run in the order somebody actually thinks about them - what
+            // shocks me, which damage counts, who else may, and what any of it looks like.
             .category(setupCategory(accountDefaults, account, parent))
+            .category(triggerCategory(defaults, config))
+            .category(damageFilterCategory(defaults, config))
+            .category(remoteCategory(accountDefaults, account))
+            .category(effectsCategory(defaults, config, accountDefaults, account))
     }
 
     /**
-     * The damage filter: a mode switch, the nine [DamageCategory] checkboxes, and the exact damage
-     * type picker the mode can hand over to.
+     * What shocks you, and how hard: one group per thing the mod watches happen to you.
+     *
+     * The damage filter is a tab of its own rather than a group down here. It is a mode switch,
+     * nine checkboxes and every damage type the world has, which is more than these four triggers
+     * put together, and it used to bury them.
+     */
+    private fun triggerCategory(defaults: ShockCraftConfig, config: ShockCraftConfig): ConfigCategory {
+        return ConfigCategory.createBuilder()
+            .name(Component.literal("Triggers"))
+
+            .group(OptionGroup.createBuilder()
+                .name(Component.literal("On Damage"))
+                .description(OptionDescription.of(Component.literal("Settings for shocking on damage")))
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Enabled"))
+                    .description(OptionDescription.of(Component.literal("Enable shocking on damage")))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(defaults.onDamage, { config.onDamage }, { config.onDamage = it })
+                    .build()
+                )
+                .option(Option.createBuilder<DamageShockMode>()
+                    .name(Component.literal("On Damage Action"))
+                    .description(
+                        OptionDescription.of(
+                            Component.literal(
+                                "Defines what happens when you receive damage.\n" +
+                                        "Low Hp = You get shocked at higher intensity the less HP you have\n" +
+                                        "Damage Amount = You get shocked the amount of damage you have received"
+                            )
+                        )
+                    )
+                    .controller {
+                        EnumControllerBuilder.create(it).enumClass(DamageShockMode::class.java)
+                    }
+                    .binding(defaults.damageMode, { config.damageMode }, { config.damageMode = it })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Minimum Intensity"))
+                    .controller { option: Option<Int> ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(1, 100)
+                            .step(1)
+                    }
+                    .binding(
+                        defaults.intensityMin.toInt(),
+                        { config.intensityMin.toInt() },
+                        { config.intensityMin = it.toByte() })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Maximum Intensity"))
+                    .controller { option: Option<Int> ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(1, 100)
+                            .step(1)
+                    }
+                    .binding(
+                        defaults.intensityMax.toInt(),
+                        { config.intensityMax.toInt() },
+                        { config.intensityMax = it.toByte() })
+                    .build()
+                )
+
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Damage Threshold"))
+                    .description(OptionDescription.of(Component.literal("How much damage you need to take, or have until a shock is sent")))
+                    .controller { option: Option<Int> ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(1, 20)
+                            .step(1)
+                    }
+                    .binding(
+                        defaults.damageThreshold.toInt(),
+                        { config.damageThreshold.toInt() },
+                        { config.damageThreshold = it.toUInt() })
+                    .build()
+                )
+
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Cooldown"))
+                    .description(OptionDescription.of(Component.literal("Cooldown between on damage shocks")))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(300, 60_000)
+                            .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
+                    }
+                    .binding(
+                        defaults.cooldown.toInt(),
+                        { config.cooldown.toInt() },
+                        { config.cooldown = it.toUShort() })
+                    .build()
+                )
+
+                .build()
+            )
+
+            .group(OptionGroup.createBuilder()
+                .name(Component.literal("On Death"))
+                .description(OptionDescription.of(Component.literal("Defines what happens when you die")))
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Enabled"))
+                    .description(OptionDescription.of(Component.literal("Enable shocking on death")))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(defaults.onDeath, { config.onDeath }, { config.onDeath = it })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Intensity"))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(1, 100)
+                            .step(1)
+                    }
+                    .binding(
+                        defaults.onDeathIntensity.toInt(),
+                        { config.onDeathIntensity.toInt() },
+                        { config.onDeathIntensity = it.toByte() })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Duration"))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(300, 30_000)
+                            .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
+                    }
+                    .binding(
+                        defaults.onDeathDuration.toInt(),
+                        { config.onDeathDuration.toInt() },
+                        { config.onDeathDuration = it.toUShort() })
+                    .build()
+                )
+
+                .build()
+            )
+
+            .group(OptionGroup.createBuilder()
+                .name(Component.literal("On Level Up"))
+                .description(OptionDescription.of(Component.literal("Defines what happens when you gain an XP level")))
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Enabled"))
+                    .description(OptionDescription.of(Component.literal("Enable shocking on level up")))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(defaults.onLevelUp, { config.onLevelUp }, { config.onLevelUp = it })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Intensity"))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(1, 100)
+                            .step(1)
+                    }
+                    .binding(
+                        defaults.onLevelUpIntensity.toInt(),
+                        { config.onLevelUpIntensity.toInt() },
+                        { config.onLevelUpIntensity = it.toByte() })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Duration"))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(300, 30_000)
+                            .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
+                    }
+                    .binding(
+                        defaults.onLevelUpDuration.toInt(),
+                        { config.onLevelUpDuration.toInt() },
+                        { config.onLevelUpDuration = it.toUShort() })
+                    .build()
+                )
+
+                .build()
+            )
+
+            .group(OptionGroup.createBuilder()
+                .name(Component.literal("On Chat Message"))
+                .description(OptionDescription.of(Component.literal("Defines what happens when a specific chat phrase is sent or received")))
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Enable for Chat Messages"))
+                    .description(OptionDescription.of(Component.literal("Enable shocking when a message with the key phrase is sent/received")))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(defaults.onChatEvent, { config.onChatEvent }, { config.onChatEvent = it })
+                    .build()
+                )
+                .option(Option.createBuilder<String>()
+                    .name(Component.literal("Key Phrase"))
+                    .description(OptionDescription.of(Component.literal("The phrase to trigger the shock")))
+                    .controller { StringControllerBuilder.create(it) }
+                    .binding(defaults.chatMessagePhrase, { config.chatMessagePhrase }, { config.chatMessagePhrase = it })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Intensity"))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(1, 100)
+                            .step(1)
+                    }
+                    .binding(
+                        defaults.onChatMessageIntensity.toInt(),
+                        { config.onChatMessageIntensity.toInt() },
+                        { config.onChatMessageIntensity = it.toByte() })
+                    .build()
+                )
+                .option(Option.createBuilder<Int>()
+                    .name(Component.literal("Duration"))
+                    .controller { option ->
+                        IntegerSliderControllerBuilder.create(option)
+                            .range(300, 30_000)
+                            .step(100).formatValue { Component.literal((it / 1000f).toString() + " seconds") }
+                    }
+                    .binding(
+                        defaults.onChatMessageDuration.toInt(),
+                        { config.onChatMessageDuration.toInt() },
+                        { config.onChatMessageDuration = it.toUShort() })
+                    .build()
+                )
+
+                .build()
+            )
+
+            .build()
+    }
+
+    /**
+     * What other players may do to you, and which collars you have agreed to.
+     *
+     * Its own tab rather than the bottom of Setup. Setup is a URL and a token - things filled in
+     * once and forgotten; this is consent, and it should not sit where you have to scroll past the
+     * plumbing to find it.
+     */
+    private fun remoteCategory(accountDefaults: AccountConfig, account: AccountConfig): ConfigCategory {
+        return ConfigCategory.createBuilder()
+            .name(Component.literal("Remote Control"))
+            .group(remotePermissionsGroup(accountDefaults, account))
+            .group(remoteLimitsGroup(accountDefaults, account))
+            .group(armedCollarsGroup(account))
+            .build()
+    }
+
+    /**
+     * What a shock looks and sounds like, split by who gets it.
+     *
+     * That line is the only one worth splitting these on. The first group is drawn by this client
+     * and goes nowhere; the second costs a packet upwards saying a shock got through, which is the
+     * only way anybody else learns that it did. It is also why the second group lives in
+     * [AccountConfig] with the remote caps while the first is per instance - see
+     * [openshock.integrations.minecraft.platform.ShockedPayload].
+     */
+    private fun effectsCategory(
+        defaults: ShockCraftConfig,
+        config: ShockCraftConfig,
+        accountDefaults: AccountConfig,
+        account: AccountConfig,
+    ): ConfigCategory {
+        return ConfigCategory.createBuilder()
+            .name(Component.literal("Effects"))
+
+            .group(OptionGroup.createBuilder()
+                .name(Component.literal("On Your Screen"))
+                .description(OptionDescription.of(Component.literal(
+                    "Drawn by your own client, for you.\n\n" +
+                            "Nothing here is sent anywhere, so nobody else can tell it is happening"
+                )))
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Display Shocks in Action Bar"))
+                    .description(OptionDescription.of(Component.literal("Displays Shocks or all kinds of commands in the action bar on your screen")))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(defaults.displayShocksInActionBar, { config.displayShocksInActionBar }, { config.displayShocksInActionBar = it })
+                    .build()
+                )
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Lightning Overlay"))
+                    .description(OptionDescription.of(Component.literal(
+                        "Crawls lightning around the edge of your screen while a shock is running.\n\n" +
+                                "Shocks only - a vibrate or a beep never paints over your screen. The flash and " +
+                                "the flicker follow Minecraft own Distortion Effects slider, so turning that " +
+                                "down leaves the lightning steady rather than gone"
+                    )))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(defaults.shockScreenOverlay, { config.shockScreenOverlay }, { config.shockScreenOverlay = it })
+                    .build()
+                ).build()
+            )
+
+            .group(OptionGroup.createBuilder()
+                .name(Component.literal("Around You"))
+                .description(OptionDescription.of(Component.literal(
+                    "What the room gets when a shock lands on you.\n\n" +
+                            "Drawing any of it costs a packet upwards saying a shock got through, which is the " +
+                            "only way a remote holder could ever learn that it did. With both of these off, " +
+                            "nothing is sent at all and a shock is between you and your own client"
+                )))
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Show Shock Particles"))
+                    .description(OptionDescription.of(Component.literal(
+                        "Draw sparks around you when a shock lands, for everyone nearby to see"
+                    )))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(
+                        accountDefaults.showEffectParticles,
+                        { account.showEffectParticles },
+                        { account.showEffectParticles = it })
+                    .build()
+                )
+
+                .option(Option.createBuilder<Boolean>()
+                    .name(Component.literal("Play Shock Crackle"))
+                    .description(OptionDescription.of(Component.literal(
+                        "Play a crackle when a shock lands, for everyone nearby to hear"
+                    )))
+                    .controller { TickBoxControllerBuilder.create(it) }
+                    .binding(
+                        accountDefaults.showEffectSounds,
+                        { account.showEffectSounds },
+                        { account.showEffectSounds = it })
+                    .build()
+                )
+
+                .option(ButtonOption.createBuilder()
+                    .name(Component.literal("Preview on me"))
+                    .description(OptionDescription.of(Component.literal(
+                        "Draws the arcs and plays the crackle on you, without shocking anything.\n\n" +
+                                "Nothing is sent to OpenShock and no shocker runs - this is only the packet " +
+                                "that tells the server to draw, which is the same one a real shock sends. " +
+                                "Needs a world, and a server with the mod on it"
+                    )))
+                    .action { screen, _ ->
+                        // Applied and saved first, for the same reason the reload button does it:
+                        // the tick boxes above decide what the preview is allowed to draw, and a
+                        // value that has only been clicked is still pending.
+                        OptionUtils.forEachOptions(screen.config) { it.applyValue() }
+                        screen.config.saveFunction().run()
+
+                        McCompat.closeScreen()
+                        NetClient.sendShocked(
+                            RemoteMode.Shock,
+                            PREVIEW_INTENSITY,
+                            PREVIEW_DURATION,
+                            account.showEffectParticles,
+                            account.showEffectSounds,
+                        )
+                    }
+                    .build()
+                ).build()
+            )
+
+            .build()
+    }
+
+    /**
+     * Which damage is allowed to shock you: a mode switch, the nine [DamageCategory] checkboxes,
+     * and the exact damage type picker the mode can hand over to.
+     *
+     * On Damage only. Dying is decided by the On Death settings over in Triggers however this is
+     * set, which is the one thing worth knowing before touching any of it.
      *
      * Both lists are always on screen, and the mode greys out whichever one is not in charge -
      * built as a listener rather than by leaving options out, because YACL fixes the option list
@@ -335,7 +476,7 @@ object ConfigScreen {
      * uses: the order YACL applies them in cannot matter, and an entry this version does not
      * recognise rides along untouched instead of being dropped.
      */
-    private fun damageFilterGroups(defaults: ShockCraftConfig, config: ShockCraftConfig): List<OptionGroup> {
+    private fun damageFilterCategory(defaults: ShockCraftConfig, config: ShockCraftConfig): ConfigCategory {
         val categoryOptions = DamageCategory.entries.map { category ->
             Option.createBuilder<Boolean>()
                 .name(Component.literal(category.displayName))
@@ -417,12 +558,11 @@ object ConfigScreen {
             .build()
 
         val categories = OptionGroup.createBuilder()
-            .name(Component.literal("Damage Types"))
+            .name(Component.literal("Categories"))
             .description(OptionDescription.of(Component.literal(
-                "Which damage is allowed to shock you.\n\n" +
-                        "This filters On Damage only - dying is still up to the On Death settings"
+                "The nine buckets every kind of damage falls into, exactly one each.\n\n" +
+                        "Used when Filter by is set to Categories"
             )))
-            .option(mode)
             .options(categoryOptions)
             .build()
 
@@ -445,8 +585,18 @@ object ConfigScreen {
             }
             .build()
 
-        // A ListOption is its own group, so it goes into the category alongside the other two.
-        return listOf(categories, exact, manualTypes)
+        // Filter by sits on the category itself rather than inside a group, because a group can
+        // be collapsed and this is the control that explains why one of the two lists below is
+        // greyed out. Folded away with the list it governs, it would look like a bug.
+        //
+        // A ListOption is its own group, so the manual entries go in beside the other two.
+        return ConfigCategory.createBuilder()
+            .name(Component.literal("Damage Filter"))
+            .option(mode)
+            .group(categories)
+            .group(exact)
+            .group(manualTypes)
+            .build()
     }
 
     /**
@@ -547,15 +697,32 @@ object ConfigScreen {
                             { account.apiBaseUrl = it })
                         .build()
                 )
+                // The token itself is deliberately not on this screen - see [ApiTokenScreen].
+                // All that is said here is whether there is one.
+                .option(LabelOption.create(Component.literal(
+                    if (account.apiToken.isBlank()) "API Token: not set" else "API Token: set"
+                )))
                 .option(
-                    Option.createBuilder<String>()
-                        .name(Component.literal("API Token"))
-                        .description(OptionDescription.of(Component.literal("API Token generated on the web, needs shocker use permission")))
-                        .controller { option: Option<String> -> StringControllerBuilder.create(option) }
-                        .binding(
-                            accountDefaults.apiToken,
-                            { account.apiToken },
-                            { account.apiToken = it })
+                    ButtonOption.createBuilder()
+                        .name(Component.literal(
+                            if (account.apiToken.isBlank()) "Set API Token" else "Change API Token"
+                        ))
+                        .description(OptionDescription.of(Component.literal(
+                            "Opens a box to paste your token into. Generate one on the web - it needs " +
+                                    "shocker use permission.\n\n" +
+                                    "It is entered on a screen of its own and never shown on this one, because " +
+                                    "anyone who has it can shock you and this is the screen most likely to end " +
+                                    "up on camera"
+                        )))
+                        .action { screen, _ ->
+                            // Apply and save before leaving, the same as the reload button below:
+                            // coming back rebuilds this screen, which would drop anything still
+                            // pending on it.
+                            OptionUtils.forEachOptions(screen.config) { it.applyValue() }
+                            screen.config.saveFunction().run()
+
+                            McCompat.setScreen(ApiTokenScreen(parent))
+                        }
                         .build()
                 )
                 .option(
@@ -575,8 +742,6 @@ object ConfigScreen {
             )
 
             .group(shockers.build())
-
-            .group(remoteControlGroup(accountDefaults, account))
 
             // The escape hatch for anything the picker cannot offer: a backend that is unreachable
             // right now, or a shocker the listing endpoints do not return.
@@ -603,21 +768,24 @@ object ConfigScreen {
     }
 
     /**
-     * What other players' remotes are allowed to do to you.
+     * Which kinds of press another player may make at all.
      *
-     * Nothing can reach [RemoteControl] yet - remotes come later - but the ceiling is testable
-     * today, which is the point of the button: press it and feel the strongest thing a remote
-     * could ever do, before handing one to anybody.
+     * The master switch and one tick box per mode, because a remote can be set to shock, buzz or
+     * beep and those are not the same thing to agree to - accepting a buzz from your friends
+     * should not be how you end up accepting a shock from them.
+     *
+     * How hard any of it may be is [remoteLimitsGroup]; whether it reaches a particular collar at
+     * all is [armedCollarsGroup].
      */
-    @OptIn(DelicateCoroutinesApi::class)
-    private fun remoteControlGroup(accountDefaults: AccountConfig, account: AccountConfig): OptionGroup {
-        val group = OptionGroup.createBuilder()
-            .name(Component.literal("Remote Control"))
+    private fun remotePermissionsGroup(accountDefaults: AccountConfig, account: AccountConfig): OptionGroup {
+        return OptionGroup.createBuilder()
+            .name(Component.literal("Permissions"))
             .description(OptionDescription.of(Component.literal(
-                "Whether other players may shock you, and how hard they may do it.\n\n" +
-                        "Your API token never leaves this machine - a remote sends a request, and these limits " +
-                        "decide what it turns into. Nothing here is set by a modpack: like the token, it is stored " +
-                        "per user, so an instance someone hands you cannot arrive with this already switched on"
+                "Whether other players may reach you, and with what.\n\n" +
+                        "Your API token never leaves this machine - a remote only sends a request, and what " +
+                        "you set here decides whether it turns into anything. Nothing on this tab is set by a " +
+                        "modpack: like the token it is stored per user, so an instance someone hands you cannot " +
+                        "arrive with any of it already switched on"
             )))
 
             .option(Option.createBuilder<Boolean>()
@@ -671,6 +839,27 @@ object ConfigScreen {
                 .build()
             )
 
+            .build()
+    }
+
+    /**
+     * How hard, how long and how often, whatever a remote asks for.
+     *
+     * One set of numbers for all three modes on purpose: they bound how much shocker runs, and
+     * that means the same thing whether it comes out as a jolt, a buzz or a beep. What differs
+     * between modes is only whether you want them, which is [remotePermissionsGroup].
+     *
+     * The ceiling is testable from here, which is the point of the button at the bottom: press it
+     * and feel the strongest thing a remote could ever do to you, before handing one to anybody.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun remoteLimitsGroup(accountDefaults: AccountConfig, account: AccountConfig): OptionGroup {
+        return OptionGroup.createBuilder()
+            .name(Component.literal("Limits"))
+            .description(OptionDescription.of(Component.literal(
+                "The ceiling every remote press is clamped to, however hard, long or often it asks"
+            )))
+
             .option(Option.createBuilder<Int>()
                 .name(Component.literal("Maximum Intensity"))
                 .description(OptionDescription.of(Component.literal("The strongest a remote may shock you, however hard it asks for")))
@@ -716,38 +905,6 @@ object ConfigScreen {
                 .build()
             )
 
-            // What the room gets when a shock lands. These sit here rather than with the other
-            // display settings because they are the same kind of choice as the ones above: the
-            // packet that draws them is the only reason anyone else learns a shock got through,
-            // so switching both off puts that back to being between you and your own client.
-            .option(Option.createBuilder<Boolean>()
-                .name(Component.literal("Show Shock Particles"))
-                .description(OptionDescription.of(Component.literal(
-                    "Draw sparks around you when a shock lands, for everyone nearby to see.\n\n" +
-                            "With this and the crackle both off, nothing is sent to the server at all and a " +
-                            "shock is something only you know about"
-                )))
-                .controller { TickBoxControllerBuilder.create(it) }
-                .binding(
-                    accountDefaults.showEffectParticles,
-                    { account.showEffectParticles },
-                    { account.showEffectParticles = it })
-                .build()
-            )
-
-            .option(Option.createBuilder<Boolean>()
-                .name(Component.literal("Play Shock Crackle"))
-                .description(OptionDescription.of(Component.literal(
-                    "Play a crackle when a shock lands, for everyone nearby to hear"
-                )))
-                .controller { TickBoxControllerBuilder.create(it) }
-                .binding(
-                    accountDefaults.showEffectSounds,
-                    { account.showEffectSounds },
-                    { account.showEffectSounds = it })
-                .build()
-            )
-
             .option(ButtonOption.createBuilder()
                 .name(Component.literal("Test the ceiling"))
                 .description(OptionDescription.of(Component.literal(
@@ -766,9 +923,26 @@ object ConfigScreen {
                 .build()
             )
 
-        // Collars you have agreed to wear, which is where permission actually lives now - the
-        // links themselves are on the item. Unticking one disarms it: the collar stays on your
-        // head and keeps working as a hat, and every remote pointed at it stops.
+            .build()
+    }
+
+    /**
+     * The collars you have agreed to, which is where permission actually lives now - the links
+     * themselves are on the item. Unticking one disarms it: the collar stays on your leg and keeps
+     * working as a pair of leggings, and every remote pointed at it stops.
+     *
+     * Its own group beside the caps rather than tacked onto the end of them, because it answers a
+     * different question. The caps are how hard; this is whether at all.
+     */
+    private fun armedCollarsGroup(account: AccountConfig): OptionGroup {
+        val group = OptionGroup.createBuilder()
+            .name(Component.literal("Armed Collars"))
+            .description(OptionDescription.of(Component.literal(
+                "A collar has to be ticked here before anything can be shocked through it, whoever is " +
+                        "holding the remote.\n\n" +
+                        "You arm one by agreeing when you put it on, and taking it off disarms it again"
+            )))
+
         val armed = account.armedCollars
         if (armed.isEmpty()) {
             group.option(LabelOption.create(Component.literal("No collars armed")))
