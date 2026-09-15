@@ -25,6 +25,24 @@ val deobfuscated = stonecutter.eval(mod.minecraftVersion, ">=26.1")
 // that does not exist is a parse error in the log on every world load.
 val hasItems = stonecutter.eval(mod.minecraftVersion, ">=1.21.4")
 
+/**
+ * The accessory-slot mod the collar can be worn in on this target: [slug] is the artifact on
+ * Modrinth's maven and the optional dependency listed on the Modrinth page, and [versionProperty]
+ * holds the version to build against.
+ */
+data class SlotMod(val slug: String, val versionProperty: String)
+
+// Null below 1.21.4, where there is no collar to wear. Three different mods cover the rest of the
+// range - see CollarSlot - and this is the one place that decides which.
+val slotMod: SlotMod? = when {
+    !hasItems -> null
+    // One jar for both loaders on 26.x.
+    stonecutter.eval(mod.minecraftVersion, ">=26.1") ->
+        SlotMod("trinkets-updated", "slot_mod_version")
+    mod.isFabric -> SlotMod("trinkets-canary", "slot_mod_version_fabric")
+    else -> SlotMod("curios", "slot_mod_version_neoforge")
+}
+
 // Stonecraft picks the Java version from the Minecraft version (21 for 1.21.x, 25 for 26.x).
 // Kotlin has to follow it rather than pick its own.
 val javaVersion = java.toolchain.languageVersion.get().asInt()
@@ -94,24 +112,19 @@ dependencies {
 
     // The accessory slot the collar is worn in. Three different mods provide it across the range -
     // see CollarSlot - and all three are compile-only: none is required at runtime, and without
-    // one the collar falls back to the head slot. Referenced by Modrinth version id rather than
+    // one the collar falls back to the leggings slot. Referenced by Modrinth version id rather than
     // version number, because a '+' in a Gradle version string means "dynamic version".
-    if (hasItems) {
-        val slotMod = when {
-            stonecutter.eval(mod.minecraftVersion, ">=26.1") ->
-                "maven.modrinth:trinkets-updated:${mod.prop("slot_mod_version")}"
-            mod.isFabric -> "maven.modrinth:trinkets-canary:${mod.prop("slot_mod_version_fabric")}"
-            else -> "maven.modrinth:curios:${mod.prop("slot_mod_version_neoforge")}"
-        }
+    if (slotMod != null) {
+        val slotModNotation = "maven.modrinth:${slotMod.slug}:${mod.prop(slotMod.versionProperty)}"
 
-        modCompileDependency(slotMod)
+        modCompileDependency(slotModNotation)
 
         // And in the dev run, because the half of the collar that needs an accessory mod is the
         // half worth looking at: the worn model from assets/shockcraft/trinkets/collar.json is
         // drawn by this and nothing else, so without it `runClient` only ever shows the flat
         // leggings-slot texture. Still not required of anyone installing the mod - localRuntime
         // is not published, and CollarSlot falls back to the leggings slot when it is absent.
-        modDevRuntimeDependency(slotMod)
+        modDevRuntimeDependency(slotModNotation)
 
         // Trinkets 3.x builds its component on Cardinal Components, so TrinketComponent's
         // supertype has to be resolvable even though we never name it. Trinkets Updated 4.x
@@ -213,6 +226,12 @@ fun hasEnv(vararg names: String) = names.all { providers.environmentVariable(it)
 val publishToModrinth = hasEnv("MODRINTH_TOKEN", "MODRINTH_ID")
 val publishToCurseforge = hasEnv("CURSEFORGE_TOKEN", "CURSEFORGE_ID", "CURSEFORGE_SLUG")
 
+// Whether a server has anything to do with this mod on this version, which both platforms want to
+// know. From 1.21 the server draws the shock effects everyone nearby sees, and from 1.21.4 it also
+// holds the collars and remotes - so it can run there, though nothing requires it. Below 1.21
+// there is no channel for any of that, the server half does nothing, and client-only is the truth.
+val runsOnServer = stonecutter.eval(mod.minecraftVersion, ">=1.21")
+
 publishMods {
     // Stonecraft derives dryRun from DO_PUBLISH, but its docs and its code disagree about which
     // way round that is. Publishing is not reversible, so decide it here instead: nothing is
@@ -223,28 +242,39 @@ publishMods {
     // passes the GitHub release body instead, so a tag's notes reach both platforms.
     providers.environmentVariable("CHANGELOG").orNull?.let { changelog = it }
 
+    // Optional here has to mean optional in the jar too. Mod Menu only adds a config button -
+    // fabric.mod.json recommends it rather than depending on it - and the slot mod only gives the
+    // collar somewhere better to sit than the leggings slot, which CollarSlot falls back to
+    // without one. Listing Mod Menu as required made the page tell everyone to install it, and
+    // leaving the slot mod out meant nobody was told it exists.
     if (publishToModrinth) modrinth {
+        // Per version on Modrinth, and only accepted when a version is created - its API cannot
+        // change it afterwards - so an upload that leaves it out is stuck as client-only.
+        environment = if (runsOnServer) CLIENT_ONLY_SERVER_OPTIONAL else CLIENT_ONLY
         requires("yacl")
         if (mod.isFabric) {
             requires("fabric-api")
             requires("fabric-language-kotlin")
-            requires("modmenu")
+            optional("modmenu")
         } else {
             requires("kotlin-for-forge")
         }
+        slotMod?.let { optional(it.slug) }
     }
 
     if (publishToCurseforge) curseforge {
         client = true
-        server = false
+        server = runsOnServer
         requires("yacl")
         if (mod.isFabric) {
             requires("fabric-api")
             requires("fabric-language-kotlin")
-            requires("modmenu")
+            optional("modmenu")
         } else {
             requires("kotlin-for-forge")
         }
+        // No slot mod here yet: slotMod holds Modrinth slugs, CurseForge has its own, and a
+        // wrong one fails the upload rather than being ignored.
     }
 }
 
