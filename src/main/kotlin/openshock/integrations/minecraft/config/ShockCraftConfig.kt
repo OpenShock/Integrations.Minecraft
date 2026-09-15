@@ -105,6 +105,14 @@ class ShockCraftConfig {
     @SerialEntry
     var displayShocksInActionBar: Boolean = true
 
+    /**
+     * Drawn on your screen and nowhere else, which is why it is on by default where the particles
+     * and the crackle in [AccountConfig] are a choice about what the room learns. See
+     * [openshock.integrations.minecraft.ShockOverlay].
+     */
+    @SerialEntry
+    var shockScreenOverlay: Boolean = true
+
     companion object {
         const val FILE_NAME: String = "ShockCraft.json5"
 

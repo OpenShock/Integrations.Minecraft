@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import openshock.integrations.minecraft.config.AccountConfig
+import openshock.integrations.minecraft.ShockOverlay
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
 import openshock.integrations.minecraft.platform.NetClient
@@ -112,6 +113,11 @@ object OpenShockApi {
         // Both effects off means the packet is never sent, so nobody is told anything landed -
         // which is the only way to keep that private, since the packet is the thing that tells
         // them. See ShockedPayload.
+        // On this screen and nowhere else. The effects below are what the room gets and cost a
+        // packet to ask for; this costs nothing and tells nobody, so it is not part of that choice.
+        // Shocks only - see ShockOverlay.
+        if (type == ControlType.Shock) ShockOverlay.begin(intensity, duration.toInt())
+
         val effect = RemoteMode.fromControl(type)
         if (effect != null && (account.showEffectParticles || account.showEffectSounds)) {
             NetClient.sendShocked(
