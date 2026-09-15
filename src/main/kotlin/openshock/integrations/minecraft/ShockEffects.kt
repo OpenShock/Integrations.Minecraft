@@ -67,6 +67,14 @@ object ShockEffects {
     /** The two ankles the shocker sits on, as a sign along the player's right. */
     private val ANKLES = intArrayOf(-1, 1)
 
+    /**
+     * Where the shocker is on each ankle: this far out along the player's right, as a fraction
+     * of the body radius, and this high off the ground. Shared by every mode, so a jolt, a buzz
+     * and a beep all come from the same place on the model.
+     */
+    private const val CUFF_OUT = 0.75
+    private const val CUFF_HEIGHT = 0.1
+
     /** Arcs at once at zero intensity, and how many more a full-strength control adds. */
     private const val MIN_ARCS = 2
     private const val ARCS_PER_HUNDRED = 4
@@ -85,17 +93,10 @@ object ShockEffects {
     private const val PIECE_MIN = 0.07
     private const val PIECE_VARY = 0.09
 
-        /** Below this a shock is a twitch, and an afterglow would oversell it. */
-    private const val MOTE_FROM_INTENSITY = 50
-
-    /** One strike in three, so a strong shock sheds a mote or two a second. */
-    private const val MOTE_ONE_IN = 3
-
-
     /**
      * How a mode arranges its particles.
      *
-     * [CLOUD] is a puff around the player, which is all a buzz or a beep needs to be visible.
+     * [CLOUD] is a puff at each shocker, which is all a buzz or a beep needs to be visible.
      * [ARCS] draws electricity instead - jets off the ankles and lines crawling over the body -
      * and costs a packet per particle, so it is worth it only for the mode meant to look violent.
      */
@@ -300,30 +301,43 @@ object ShockEffects {
     }
 
     /**
-     * A puff of particles standing in the player, which is all a buzz or a beep needs.
+     * A small puff of particles at each shocker, which is all a buzz or a beep needs.
      *
-     * One packet for the lot: with a positive count the three offsets are a gaussian spread that
-     * the receiving client draws itself, so the whole cloud costs what a single particle would.
+     * At the cuffs rather than around the whole body, the same as the arcs: the buzz and the beep
+     * come out of the hardware, and a cloud in the middle of the torso said nothing about where.
+     *
+     * One packet per ankle: with a positive count the three offsets are a gaussian spread that
+     * the receiving client draws itself, so each puff costs what a single particle would. The
+     * count is split between the two, rounded up, so neither ankle is ever left empty.
      */
     private fun cloud(player: ServerPlayer, dressing: Dressing, intensity: Int) {
         val level = serverLevel(player)
 
         val count = 1 + intensity * dressing.perHundred / 100
+        val perCuff = (count + 1) / 2
 
-        // sendParticles is the vanilla broadcast: everyone within 32 blocks gets it, the person
-        // it landed on included, so there is no packet of our own going back down to the client.
-        level.sendParticles(
-            dressing.particle,
-            player.x,
-            player.y + player.bbHeight * 0.5,
-            player.z,
-            count,
-            player.bbWidth * 0.4,
-            player.bbHeight * 0.35,
-            player.bbWidth * 0.4,
-            // Barely any: the particles should sit on the player, not spray off them.
-            0.05,
-        )
+        val radius = player.bbWidth * 0.3
+        val yaw = Math.toRadians(player.yBodyRot.toDouble())
+        val rightX = cos(yaw)
+        val rightZ = sin(yaw)
+
+        for (side in ANKLES) {
+            // sendParticles is the vanilla broadcast: everyone within 32 blocks gets it, the
+            // person it landed on included, so there is no packet of our own going back down.
+            level.sendParticles(
+                dressing.particle,
+                player.x + rightX * side * radius * CUFF_OUT,
+                player.y + CUFF_HEIGHT + 0.05,
+                player.z + rightZ * side * radius * CUFF_OUT,
+                perCuff,
+                // Tight: a puff on the cuff, not a haze around the shin.
+                0.07,
+                0.05,
+                0.07,
+                // Barely any: the particles should sit on the cuff, not spray off it.
+                0.03,
+            )
+        }
     }
 
     /**
@@ -353,7 +367,6 @@ object ShockEffects {
         val level = serverLevel(player)
         val rng = player.random
 
-        val height = player.bbHeight.toDouble()
         val radius = player.bbWidth * 0.3
 
         // Yaw 0 faces +Z, which puts the player right at (cos, sin). Hanging the cuffs off that
@@ -368,9 +381,9 @@ object ShockEffects {
         repeat(MIN_ARCS + intensity * ARCS_PER_HUNDRED / 100) {
             val side = ANKLES[rng.nextInt(ANKLES.size)]
 
-            var x = player.x + rightX * side * radius * 0.75 + rng.nextGaussian() * 0.03
-            var y = player.y + 0.1 + rng.nextDouble() * spread
-            var z = player.z + rightZ * side * radius * 0.75 + rng.nextGaussian() * 0.03
+            var x = player.x + rightX * side * radius * CUFF_OUT + rng.nextGaussian() * 0.03
+            var y = player.y + CUFF_HEIGHT + rng.nextDouble() * spread
+            var z = player.z + rightZ * side * radius * CUFF_OUT + rng.nextGaussian() * 0.03
 
             // Somewhere off the leg and mostly upward. Not normalised - the length of each piece
             // is set below, so this only has to point.
@@ -417,19 +430,9 @@ object ShockEffects {
             }
         }
 
-        // A strong control sheds the odd mote drifting off, so it has an afterglow a light one
-        // does not. The only thing here that is not at the shocker.
-        if (intensity >= MOTE_FROM_INTENSITY && rng.nextInt(MOTE_ONE_IN) == 0) {
-            level.spark(
-                ParticleTypes.END_ROD,
-                player.x + (rng.nextDouble() - 0.5) * radius * 2,
-                player.y + 0.2 + rng.nextDouble() * (height - 0.4),
-                player.z + (rng.nextDouble() - 0.5) * radius * 2,
-                rng.nextGaussian() * 0.02,
-                0.02 + rng.nextDouble() * 0.03,
-                rng.nextGaussian() * 0.02,
-            )
-        }
+        // Everything is at the shocker, and nothing else is drawn. An end rod "afterglow" used to
+        // drift off strong shocks, and it read as stray white particles unrelated to the arcs -
+        // they are pure white, float upward and outlive the shock by seconds.
     }
 
     /**
