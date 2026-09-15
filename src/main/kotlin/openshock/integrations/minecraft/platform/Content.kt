@@ -2,9 +2,18 @@ package openshock.integrations.minecraft.platform
 
 //? if fabric {
 //? if >=1.21.4 {
+// The same Fabric API overhaul that renamed ItemGroupEvents renamed this: ParticleFactoryRegistry
+// became ParticleProviderRegistry, and the sprite sheet handed to the lambda came with it. Both
+// spellings hand back something that is a vanilla SpriteSet, which is all Provider wants.
+//? if >=26.1 {
+import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry
+//?} else {
+/*import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry
+*///?}
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.CreativeModeTabs
+import openshock.integrations.minecraft.ShockArcParticle
 import openshock.integrations.minecraft.content.ModContent
 
 // Fabric API 6 (26.1) replaced ItemGroupEvents with CreativeModeTabEvents, the same bundle that
@@ -41,6 +50,12 @@ object Content {
         for ((key, sound) in ModContent.soundEntries) {
             Registry.register(BuiltInRegistries.SOUND_EVENT, key, sound)
         }
+
+        // Also both sides, and for the same reason: the server names the particle by registry id
+        // and a client that has not registered it drops the packet on the floor.
+        for ((key, particle) in ModContent.particleEntries) {
+            Registry.register(BuiltInRegistries.PARTICLE_TYPE, key, particle)
+        }
     }
 
     /**
@@ -50,6 +65,18 @@ object Content {
      * makes it a tool of somebody else's, and Combat implies it is a weapon you point at people.
      */
     fun initClient() {
+        // What actually draws a shock arc. The type above is only a name until something here
+        // says what to build when one arrives.
+        //? if >=26.1 {
+        ParticleProviderRegistry.getInstance().register(ModContent.SHOCK_ARC) { sprites ->
+            ShockArcParticle.Provider(sprites)
+        }
+        //?} else {
+        /*ParticleFactoryRegistry.getInstance().register(ModContent.SHOCK_ARC) { sprites ->
+            ShockArcParticle.Provider(sprites)
+        }
+        *///?}
+
         //? if >=26.1 {
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register { output ->
             output.accept(ModContent.COLLAR)
@@ -74,9 +101,11 @@ object Content {
 /*//? if >=1.21.4 {
 import net.neoforged.fml.ModLoadingContext
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent
 import net.neoforged.neoforge.registries.RegisterEvent
 import net.minecraft.core.registries.Registries
 import net.minecraft.world.item.CreativeModeTabs
+import openshock.integrations.minecraft.ShockArcParticle
 import openshock.integrations.minecraft.content.ModContent
 
 /**
@@ -108,6 +137,12 @@ object Content {
             event.register(Registries.SOUND_EVENT) { helper ->
                 for ((key, sound) in ModContent.soundEntries) helper.register(key, sound)
             }
+
+            // Also both sides, and for the same reason: the server names the particle by registry
+            // id and a client that has not registered it drops the packet on the floor.
+            event.register(Registries.PARTICLE_TYPE) { helper ->
+                for ((key, particle) in ModContent.particleEntries) helper.register(key, particle)
+            }
         }
     }
 
@@ -124,6 +159,14 @@ object Content {
             if (event.tabKey != CreativeModeTabs.TOOLS_AND_UTILITIES) return@addListener
             event.accept(ModContent.COLLAR)
             event.accept(ModContent.REMOTE)
+        }
+
+        // What actually draws a shock arc. The type above is only a name until something here
+        // says what to build when one arrives.
+        bus.addListener(RegisterParticleProvidersEvent::class.java) { event ->
+            event.registerSpriteSet(ModContent.SHOCK_ARC) { sprites ->
+                ShockArcParticle.Provider(sprites)
+            }
         }
     }
 }

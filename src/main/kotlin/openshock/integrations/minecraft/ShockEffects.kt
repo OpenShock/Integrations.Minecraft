@@ -14,6 +14,7 @@ import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 //? if >=1.21.4 {
 import openshock.integrations.minecraft.content.ModContent
 //?} else {
@@ -50,23 +51,45 @@ object ShockEffects {
     /** Longer than any control OpenShock will run, so a silly number cannot leave sparks behind. */
     private const val MAX_DURATION_MS = 30_000
 
-    /** 10 bursts a second: dense enough to read as continuous, sparse enough to stay cheap. */
-    private const val TICKS_BETWEEN_BURSTS = 2L
+    /** The shortest crackle there can be, so the briefest control the backend takes still shows. */
+    private const val MIN_TICKS = 2L
+
+    /**
+     * How often the arcs are thrown away and new ones struck: every other tick, ten times a
+     * second.
+     *
+     * Fast, because that is what an arc does. These are not one bolt being held - each is an
+     * independent flash jumping a gap near the shocker, so there is nothing to keep between
+     * bursts and the flicker is the effect.
+     */
+    private const val BURST_TICKS = 2L
 
     /** The two ankles the shocker sits on, as a sign along the player's right. */
     private val ANKLES = intArrayOf(-1, 1)
 
-    /** How far around the body one arc travels at most, in radians - a bit over a third. */
-    private const val ARC_SWEEP = 2.4
+    /** Arcs at once at zero intensity, and how many more a full-strength control adds. */
+    private const val MIN_ARCS = 2
+    private const val ARCS_PER_HUNDRED = 4
 
-    /** Segments per arc; the particle count is one more than this. Three reads as a line. */
-    private const val ARC_STEPS = 3
+    /**
+     * Pieces per arc. Two, so each one has a kink in it.
+     *
+     * A single straight streak reads as a needle; one bend is enough to read as an arc, and more
+     * would only cost particles to draw the same small thing. The pieces of one arc are drawn
+     * overlapping rather than exactly joined - they do not have to meet, and not requiring it is
+     * what keeps this robust.
+     */
+    private const val ARC_PIECES = 2
 
-    /** Below this a shock is a twitch, and an afterglow would oversell it. */
+    /** How long one piece is, in blocks. Short: an arc jumps a gap, it does not wind anywhere. */
+    private const val PIECE_MIN = 0.07
+    private const val PIECE_VARY = 0.09
+
+        /** Below this a shock is a twitch, and an afterglow would oversell it. */
     private const val MOTE_FROM_INTENSITY = 50
 
-    /** One burst in five, so a strong shock sheds about two motes a second. */
-    private const val MOTE_ONE_IN = 5
+    /** One strike in three, so a strong shock sheds a mote or two a second. */
+    private const val MOTE_ONE_IN = 3
 
 
     /**
@@ -81,11 +104,16 @@ object ShockEffects {
     /**
      * How each mode is dressed.
      *
-     * [perHundred] is how much a full-strength control adds over a minimum of one, so a nudge and
-     * the real thing do not look alike - particles under [Shape.CLOUD], whole arcs under
-     * [Shape.ARCS], which is why the shock's number is so much smaller than it looks. [volume] and
-     * [pitch] are the same idea for the sound, with [wobble] spreading the pitch a little each
-     * time so a run of them reads as crackling rather than as a stuck loop.
+     * [perHundred] is how much a full-strength control adds over a minimum of one particle, so a
+     * nudge and the real thing do not look alike. It is a [Shape.CLOUD] idea only: [Shape.ARCS]
+     * carries intensity in how far the bolt climbs instead, and the particle count falls out of
+     * that and [SPACING]. [volume] and [pitch] are the same idea for the sound, with [wobble]
+     * spreading the pitch a little each time so a run of them reads as crackling rather than as a
+     * stuck loop.
+     *
+     * [burstEveryTicks] is how often the particles are redrawn. A cloud only has to be topped up,
+     * but arcs have to be redrawn every single tick - see [STRIKE_TICKS] for why that is the
+     * difference between a bolt and a sprinkle of dots.
      *
      * [snapEveryTicks] has to match the length of the audio behind the event. A control can last
      * anywhere from a third of a second to thirty, so the sound is retriggered to cover it - and
@@ -96,6 +124,7 @@ object ShockEffects {
         val particle: SimpleParticleType,
         val shape: Shape,
         val perHundred: Int,
+        val burstEveryTicks: Long,
         val sound: SoundEvent,
         val volume: Float,
         val volumePerHundred: Float,
@@ -121,11 +150,27 @@ object ShockEffects {
     private val beepSound: SoundEvent = SoundEvents.AMETHYST_BLOCK_CHIME
     *///?}
 
+    /**
+     * What a bolt is drawn out of.
+     *
+     * The mod's own streak wherever there is a registry to put it in, which is the same 1.21.4
+     * floor the sounds and the items have - below that there is no [Content] at all, so a bolt
+     * falls back to a line of vanilla sparks. It is the one place the effect is visibly worse on
+     * the old versions, and the alternative was a second registration path for three targets.
+     */
+    //? if >=1.21.4 {
+    private val arcParticle: SimpleParticleType = ModContent.SHOCK_ARC
+    //?} else {
+    /*private val arcParticle: SimpleParticleType = ParticleTypes.ELECTRIC_SPARK
+    *///?}
+
     private val dressings: Map<RemoteMode, Dressing> = mapOf(
-        // An arc: bright, fast, unmistakable, and drawn as actual arcs rather than as a puff.
+        // An arc: bright, fast, unmistakable, and drawn as actual lightning rather than as a puff.
         //
-        // Two per hundred, so a 100% shock crawls with three at once and a 10% one has a single
-        // arc flickering somewhere on the body. Any more and they stop being legible as lines.
+        // One bolt, every tick, climbing out of the shocker. Intensity is in how far up the body
+        // it gets rather than in how many of them there are - a second bolt somewhere else does
+        // not read as "harder", it reads as "noisier", and the count is what made the old version
+        // look like glitter. Hence the zero: perHundred is a cloud idea and arcs do not use it.
         //
         // 89 ticks is `assets/shockcraft/sounds/shock.ogg` rounded *down* - it runs 4.463s, which
         // is 89.3 ticks - so a long shock retriggers a hair early and the loop overlaps by ~13ms
@@ -135,17 +180,17 @@ object ShockEffects {
         // Barely any pitch wobble either. Detuning a real recording by a fifth each time, which
         // is what suited a repeated vanilla thunderclap, would just make it sound broken.
         RemoteMode.Shock to Dressing(
-            ParticleTypes.ELECTRIC_SPARK, Shape.ARCS, 2,
+            arcParticle, Shape.ARCS, 0, BURST_TICKS,
             shockSound, 0.15f, 0.25f, 1.0f, 0.08f, 89L,
         ),
         // A buzz, pitched down and kept quiet so it reads as something on a leg.
         RemoteMode.Vibrate to Dressing(
-            ParticleTypes.CRIT, Shape.CLOUD, 3,
+            ParticleTypes.CRIT, Shape.CLOUD, 3, 2L,
             vibrateSound, 0.12f, 0.18f, 0.7f, 0.2f, 10L,
         ),
         // A beep: notes and a chime, standing in for the collar's own speaker.
         RemoteMode.Sound to Dressing(
-            ParticleTypes.NOTE, Shape.CLOUD, 2,
+            ParticleTypes.NOTE, Shape.CLOUD, 2, 2L,
             beepSound, 0.15f, 0.20f, 1.2f, 0.6f, 10L,
         ),
     )
@@ -164,6 +209,7 @@ object ShockEffects {
          * once an interval is measured in seconds.
          */
         var nextSnapTick: Long = Long.MIN_VALUE
+
     }
 
     /**
@@ -196,7 +242,7 @@ object ShockEffects {
         if (durationMs == 0) return
 
         // At least one burst, so the shortest control the backend accepts still shows something.
-        val ticks = (durationMs / 50L).coerceAtLeast(TICKS_BETWEEN_BURSTS)
+        val ticks = (durationMs / 50L).coerceAtLeast(MIN_TICKS)
 
         crackling[player.getUUID()] =
             Crackle(tick + ticks, mode, intensity.coerceIn(0, 100), particles, sound)
@@ -208,8 +254,6 @@ object ShockEffects {
 
         // The overwhelmingly common case, and it costs one field read.
         if (crackling.isEmpty()) return
-
-        val drawing = tick % TICKS_BETWEEN_BURSTS == 0L
 
         val entries = crackling.entries.iterator()
         while (entries.hasNext()) {
@@ -228,7 +272,9 @@ object ShockEffects {
 
             val dressing = dressings[crackle.mode] ?: continue
 
-            if (drawing && crackle.particles) burst(player, dressing, crackle.intensity)
+            if (crackle.particles && tick % dressing.burstEveryTicks == 0L) {
+                burst(player, dressing, crackle.intensity)
+            }
 
             if (crackle.sound && tick >= crackle.nextSnapTick) {
                 crackle.nextSnapTick = tick + dressing.snapEveryTicks
@@ -281,21 +327,27 @@ object ShockEffects {
     }
 
     /**
-     * A shock, drawn as electricity instead of as confetti.
+     * A shock, drawn as an arc flash at the shocker.
      *
-     * Three things go on at once. Sparks jet off both ankles, because that is where the shocker
-     * actually sits on the model, so the effect starts where the hardware is rather than in the
-     * middle of the torso. Arcs crawl across the body: each one is a chord between two points on
-     * the cylinder around the player, bowed outwards so it stands off them, and drawn as a line
-     * of sparks left hanging in place - stationary is the whole trick, because a spark that
-     * drifts stops reading as part of a line. And a strong control sheds the odd end rod mote
-     * floating away, so a full-strength shock has an afterglow that a nudge does not.
+     * A handful of short arcs jumping off the cuffs on both ankles, thrown away and struck again
+     * ten times a second. Each one is two overlapping streaks with a bend between them, pointing
+     * off in its own direction - away from the leg and generally upwards, because that is what an
+     * arc does: it jumps a gap, it does not follow the body around.
      *
-     * Every particle is placed individually, since vanilla will only let you aim one at a time:
+     * The arcs are deliberately independent of one another and are not asked to join up. An
+     * earlier version wound one long bolt up the body out of pieces that had to meet end to end,
+     * and that is a shape Minecraft particles sell badly and a constraint that goes wrong in a
+     * dozen ways. Short, many, fast and unconnected is both easier to draw and closer to what a
+     * shocker actually does.
+     *
+     * Intensity buys two things: more arcs at once, and more room for them to appear in, so a
+     * nudge crackles on the cuff itself and a full-strength control has them climbing the shin.
+     * Neither makes any single arc bigger - a long arc is a lightning bolt, not a spark gap.
+     *
+     * Each piece is placed individually, since vanilla will only aim one at a time:
      * [ServerLevel.sendParticles] reads the three offsets as a spread when the count is positive
-     * and as the velocity when it is zero. So this costs a packet each where [cloud] costs one
-     * in total - fine for the handful below, which only go out while somebody is being shocked
-     * and only to players within 32 blocks, but the reason the counts stay small.
+     * and as the velocity when it is zero. So this costs a packet each where [cloud] costs one in
+     * total - about a dozen a burst at full strength, to everyone within 32 blocks.
      */
     private fun arcs(player: ServerPlayer, dressing: Dressing, intensity: Int) {
         val level = serverLevel(player)
@@ -304,49 +356,69 @@ object ShockEffects {
         val height = player.bbHeight.toDouble()
         val radius = player.bbWidth * 0.3
 
-        // Yaw 0 faces +Z, which puts the player's right at (cos, sin). Hanging the jets off that
+        // Yaw 0 faces +Z, which puts the player right at (cos, sin). Hanging the cuffs off that
         // rather than off a fixed compass direction keeps them on the ankles as the player turns.
         val yaw = Math.toRadians(player.yBodyRot.toDouble())
         val rightX = cos(yaw)
         val rightZ = sin(yaw)
 
-        for (side in ANKLES) {
-            level.spark(
-                dressing.particle,
-                player.x + rightX * side * radius * 0.7,
-                player.y + 0.1,
-                player.z + rightZ * side * radius * 0.7,
-                rightX * side * 0.25 + rng.nextGaussian() * 0.05,
-                0.08 + rng.nextDouble() * 0.1,
-                rightZ * side * 0.25 + rng.nextGaussian() * 0.05,
-            )
-        }
+        // How far above the cuff an arc may start.
+        val spread = 0.04 + 0.34 * intensity / 100.0
 
-        repeat(1 + intensity * dressing.perHundred / 100) {
-            val fromAngle = rng.nextDouble() * PI * 2
-            val toAngle = fromAngle + (rng.nextDouble() - 0.5) * ARC_SWEEP
-            val fromY = 0.15 + rng.nextDouble() * (height - 0.3)
-            val toY = (fromY + (rng.nextDouble() - 0.5) * height).coerceIn(0.1, height - 0.1)
+        repeat(MIN_ARCS + intensity * ARCS_PER_HUNDRED / 100) {
+            val side = ANKLES[rng.nextInt(ANKLES.size)]
 
-            for (step in 0..ARC_STEPS) {
-                val along = step.toDouble() / ARC_STEPS
-                val angle = fromAngle + (toAngle - fromAngle) * along
+            var x = player.x + rightX * side * radius * 0.75 + rng.nextGaussian() * 0.03
+            var y = player.y + 0.1 + rng.nextDouble() * spread
+            var z = player.z + rightZ * side * radius * 0.75 + rng.nextGaussian() * 0.03
 
-                // Widest in the middle, so the arc bows away from the body instead of tracing it.
-                val out = radius * (1.0 + 0.4 * sin(along * PI))
+            // Somewhere off the leg and mostly upward. Not normalised - the length of each piece
+            // is set below, so this only has to point.
+            val around = rng.nextDouble() * PI * 2
+            var dx = cos(around) * 0.7 + rightX * side * 0.5
+            var dy = 0.2 + rng.nextDouble() * 0.8
+            var dz = sin(around) * 0.7 + rightZ * side * 0.5
 
+            repeat(ARC_PIECES) {
+                val length = PIECE_MIN + rng.nextDouble() * PIECE_VARY
+                val scale = length / sqrt(dx * dx + dy * dy + dz * dz).coerceAtLeast(0.001)
+
+                val toX = x + dx * scale
+                val toY = y + dy * scale
+                val toZ = z + dz * scale
+
+                //? if >=1.21.4 {
+                // The midpoint and the vector from one end to the other: ShockArcParticle reads
+                // that as the length and the direction to lie along. It is not a velocity.
                 level.spark(
                     dressing.particle,
-                    player.x + cos(angle) * out,
-                    player.y + fromY + (toY - fromY) * along,
-                    player.z + sin(angle) * out,
-                    rng.nextGaussian() * 0.01,
-                    rng.nextGaussian() * 0.01,
-                    rng.nextGaussian() * 0.01,
+                    (x + toX) * 0.5,
+                    (y + toY) * 0.5,
+                    (z + toZ) * 0.5,
+                    toX - x,
+                    toY - y,
+                    toZ - z,
                 )
+                //?} else {
+                /*// No registry below 1.21.4 and so no streak - a stationary vanilla spark at each
+                // end instead, which at this size is a short bright dash rather than a line.
+                level.spark(dressing.particle, x, y, z, 0.0, 0.0, 0.0)
+                level.spark(dressing.particle, toX, toY, toZ, 0.0, 0.0, 0.0)
+                *///?}
+
+                x = toX
+                y = toY
+                z = toZ
+
+                // The bend. Generous, because an arc that carries straight on is a needle.
+                dx += rng.nextGaussian() * 0.6
+                dy += rng.nextGaussian() * 0.6
+                dz += rng.nextGaussian() * 0.6
             }
         }
 
+        // A strong control sheds the odd mote drifting off, so it has an afterglow a light one
+        // does not. The only thing here that is not at the shocker.
         if (intensity >= MOTE_FROM_INTENSITY && rng.nextInt(MOTE_ONE_IN) == 0) {
             level.spark(
                 ParticleTypes.END_ROD,

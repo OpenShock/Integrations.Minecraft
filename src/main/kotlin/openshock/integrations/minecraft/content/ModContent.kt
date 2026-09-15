@@ -8,6 +8,8 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
 import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.resources.ResourceKey
+import net.minecraft.core.particles.ParticleType
+import net.minecraft.core.particles.SimpleParticleType
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.item.Item
@@ -101,6 +103,27 @@ object ModContent {
         soundKey("shock") to SHOCK_SOUND,
         soundKey("vibrate") to VIBRATE_SOUND,
         soundKey("beep") to BEEP_SOUND,
+    )
+
+    // <--- Particles --->
+
+    /**
+     * One straight piece of a bolt, drawn as a streak rather than as a dot.
+     *
+     * Vanilla has nothing shaped like this. Its sparks are round, soft and two or three ticks
+     * long, so a line of them reads as a row of dots however carefully they are placed, which is
+     * what this replaces. See [openshock.integrations.minecraft.ShockArcParticle] for what it
+     * actually does with the velocity it is sent.
+     *
+     * An anonymous subclass because [SimpleParticleType]'s constructor is protected - the loaders
+     * each have a helper for this, and subclassing is the one way that is spelled the same on
+     * both. `false` leaves it subject to the client's particle setting, the same as vanilla's own
+     * sparks: somebody who has turned particles down has said something, and this is decoration.
+     */
+    val SHOCK_ARC: SimpleParticleType = object : SimpleParticleType(false) {}
+
+    val particleEntries: List<Pair<ResourceKey<ParticleType<*>>, ParticleType<*>>> = listOf(
+        particleKey("shock_arc") to SHOCK_ARC,
     )
 
     // <--- Items --->
@@ -217,6 +240,9 @@ object ModContent {
 
     private fun soundEvent(path: String): SoundEvent =
         SoundEvent.createVariableRangeEvent(McCompat.identifier(ShockCraft.MOD_ID, path))
+
+    private fun particleKey(path: String): ResourceKey<ParticleType<*>> =
+        ResourceKey.create(Registries.PARTICLE_TYPE, McCompat.identifier(ShockCraft.MOD_ID, path))
 
     private fun soundKey(path: String): ResourceKey<SoundEvent> =
         ResourceKey.create(Registries.SOUND_EVENT, McCompat.identifier(ShockCraft.MOD_ID, path))
