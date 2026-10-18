@@ -11,7 +11,7 @@ pluginManagement {
 }
 
 plugins {
-    id("gg.meza.stonecraft") version "1.12.6"
+    id("gg.meza.stonecraft") version "1.14.2"
     id("dev.kikugie.stonecutter") version "0.9.7"
 
     // Targets span three Java versions (17 for 1.20.x, 21 for 1.21.x, 25 for 26.x). This lets
@@ -39,8 +39,12 @@ stonecutter {
         mc("1.21.11", "fabric", "neoforge")
         mc("26.1", "fabric", "neoforge")
         mc("26.2", "fabric", "neoforge")
+        // Fabric only for now: Kotlin for Forge 6.3.0, the newest release, declares
+        // minecraft [1.21.9, 26.3), so FML refuses to load it - and therefore this mod - on 26.3.
+        // Add "neoforge" here (26.3.properties already has a neoforge_version) once KFF catches up.
+        mc("26.3", "fabric")
 
-        vcsVersion = "26.2-fabric"
+        vcsVersion = "26.3-fabric"
     }
 
     create(rootProject)

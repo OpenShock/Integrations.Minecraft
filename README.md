@@ -41,10 +41,14 @@ ships the same jar contents; what differs is which features the underlying game 
 | 1.21.11 and later 1.21.x | Fabric, NeoForge | 21 |
 | 26.1 | Fabric, NeoForge | 25 |
 | 26.2 | Fabric, NeoForge | 25 |
+| 26.3 | Fabric | 25 |
 
 Each build accepts exactly its own version, except the 1.21.11 one, which also takes any 1.21.x
 above it. Nothing is published for 1.20.5–1.20.6, 1.21.2–1.21.3 or 1.21.6–1.21.10 — the loaders
 refuse to load the jar there rather than load it half-broken.
+
+26.3 is Fabric-only for now: no Kotlin for Forge release supports it yet, and NeoForge would refuse
+to load the mod without one. A NeoForge build follows once it does.
 
 #### What works where
 
@@ -107,6 +111,7 @@ starts without it — you would just have to edit the config files by hand.
 | 1.21.11 | 0.141.6+1.21.11 | 1.14.1+kotlin.2.4.20 | 3.8.2+1.21.11 | 17.0.1-beta.1 |
 | 26.1 | 0.155.3+26.1.2 | 1.14.1+kotlin.2.4.20 | 3.9.6+26.1 | 18.0.1 |
 | 26.2 | 0.160.0+26.2 | 1.14.1+kotlin.2.4.20 | 3.9.6+26.2 | 20.0.2 |
+| 26.3 | 0.161.0+26.3 | 1.14.1+kotlin.2.4.20 | 3.9.7+26.3 | 21.0.0 |
 
 **NeoForge** — [Kotlin for Forge](https://modrinth.com/mod/kotlin-for-forge) supplies the Kotlin
 runtime, and its version range is declared as the `modLoader` version, so an older one makes FML
@@ -198,7 +203,7 @@ loader wiring.
 
 | | |
 |---|---|
-| Minecraft | 1.20.4, 1.21, 1.21.1, 1.21.4, 1.21.5, 1.21.11, 26.1, 26.2 |
+| Minecraft | 1.20.4, 1.21, 1.21.1, 1.21.4, 1.21.5, 1.21.11, 26.1, 26.2, 26.3 |
 | Loaders | Fabric, NeoForge |
 | Targets | 16 (every version × every loader) |
 | Java | 17 for 1.20.x, 21 for 1.21.x, 25 for 26.x (Gradle downloads any it is missing) |
@@ -226,7 +231,7 @@ that do not apply to the new target. That is expected — do not revert it.
 ### Running the game
 
 ```bash
-./gradlew :26.2-fabric:runClient
+./gradlew :26.3-fabric:runClient
 ./gradlew :1.21.1-neoforge:runClient
 ```
 
@@ -313,7 +318,7 @@ would be sent:
   - `Platform.kt` — the handful of loader APIs with no common equivalent.
   - `McCompat.kt` — the few vanilla APIs that changed across the version range.
 
-Everything outside `platform/` compiles unchanged on all sixteen targets. Sources use **Mojang
+Everything outside `platform/` compiles unchanged on every target. Sources use **Mojang
 mappings**, which both loaders share.
 
 The version-conditional code is deliberately confined to those files. `McCompat.kt` covers the
