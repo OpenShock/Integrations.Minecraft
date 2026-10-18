@@ -11,6 +11,7 @@ import openshock.integrations.minecraft.ShockOverlay
 import openshock.integrations.minecraft.config.ShockCraftConfig
 import openshock.integrations.minecraft.platform.McCompat
 import openshock.integrations.minecraft.platform.NetClient
+import openshock.integrations.minecraft.platform.Platform
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.net.URI
@@ -72,7 +73,7 @@ object OpenShockApi {
         .followRedirects(HttpClient.Redirect.NORMAL)
 
     private val userAgent: String by lazy {
-        "Integrations.Minecraft/1.0.0 (Minecraft ${Minecraft.getInstance().launchedVersion}; Java ${System.getProperty("java.version")})"
+        "Integrations.Minecraft/2.0.0 (Minecraft ${Minecraft.getInstance().launchedVersion}; Java ${System.getProperty("java.version")})"
     }
 
     suspend fun control(type: ControlType, intensity: Byte, duration: UShort, name: String) {
