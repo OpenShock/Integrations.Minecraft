@@ -41,14 +41,11 @@ ships the same jar contents; what differs is which features the underlying game 
 | 1.21.11 and later 1.21.x | Fabric, NeoForge | 21 |
 | 26.1 | Fabric, NeoForge | 25 |
 | 26.2 | Fabric, NeoForge | 25 |
-| 26.3 | Fabric | 25 |
+| 26.3 | Fabric, NeoForge | 25 |
 
 Each build accepts exactly its own version, except the 1.21.11 one, which also takes any 1.21.x
 above it. Nothing is published for 1.20.5–1.20.6, 1.21.2–1.21.3 or 1.21.6–1.21.10 — the loaders
 refuse to load the jar there rather than load it half-broken.
-
-26.3 is Fabric-only for now: no Kotlin for Forge release supports it yet, and NeoForge would refuse
-to load the mod without one. A NeoForge build follows once it does.
 
 #### What works where
 
@@ -127,6 +124,7 @@ reject the jar outright. [YACL](https://modrinth.com/mod/yacl) is declared clien
 | 1.21.11 | 21.11.45 | 6.3.0 | 3.8.2+1.21.11 |
 | 26.1 | 26.1.2.109 | 6.3.0 | 3.9.6+26.1 |
 | 26.2 | 26.2.0.88 | 6.3.0 | 3.9.6+26.2 |
+| 26.3 | 26.3.0.90 | 6.4.0 | 3.9.7+26.3 |
 
 The versions above are what each target is built and tested against. Fabric API and YACL are
 declared as `*` in the Fabric metadata, so a newer one loads; the NeoForge side declares its

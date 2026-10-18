@@ -39,10 +39,7 @@ stonecutter {
         mc("1.21.11", "fabric", "neoforge")
         mc("26.1", "fabric", "neoforge")
         mc("26.2", "fabric", "neoforge")
-        // Fabric only for now: Kotlin for Forge 6.3.0, the newest release, declares
-        // minecraft [1.21.9, 26.3), so FML refuses to load it - and therefore this mod - on 26.3.
-        // Add "neoforge" here (26.3.properties already has a neoforge_version) once KFF catches up.
-        mc("26.3", "fabric")
+        mc("26.3", "fabric", "neoforge")
 
         vcsVersion = "26.3-fabric"
     }
