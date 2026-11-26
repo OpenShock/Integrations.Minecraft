@@ -12,7 +12,7 @@ pluginManagement {
 
 plugins {
     id("gg.meza.stonecraft") version "1.14.2"
-    id("dev.kikugie.stonecutter") version "0.9.7"
+    id("dev.kikugie.stonecutter") version "0.10"
 
     // Targets span three Java versions (17 for 1.20.x, 21 for 1.21.x, 25 for 26.x). This lets
     // Gradle download any toolchain the machine is missing instead of failing the build.
